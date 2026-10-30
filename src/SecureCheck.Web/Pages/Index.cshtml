@@ -1,0 +1,29 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <h1 class="h3 mb-0 sc-heading"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
+    <span class="text-muted small">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</span>
+</div>
+
+<div class="card sc-card">
+    <div class="card-body p-4">
+        <h2 class="h4 sc-heading mb-2">Welcome, @Model.FullName</h2>
+        <p class="text-muted mb-3">
+            You are signed in as <span class="badge sc-badge-navy">@Model.RoleNames</span>.
+            The security dashboard (scores, risk levels and alerts) will appear here once audits are running.
+        </p>
+
+        <div class="d-flex flex-wrap gap-2">
+            <span class="badge risk-low">Low</span>
+            <span class="badge risk-medium">Medium</span>
+            <span class="badge risk-high">High</span>
+            <span class="badge risk-critical">Critical</span>
+            <span class="badge status-error">Error</span>
+        </div>
+    </div>
+</div>
+

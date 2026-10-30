@@ -1,0 +1,27 @@
+@page
+@model LogoutModel
+@{
+    ViewData["Title"] = "Log out";
+}
+
+<div class="sc-auth-wrapper">
+    <div class="card sc-card sc-auth-card">
+        <div class="card-body p-4 text-center">
+            <i class="bi bi-box-arrow-right display-5 sc-heading"></i>
+            <h1 class="h4 sc-heading mt-3">Log out</h1>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <p class="text-muted">Do you want to log out of SecureCheck?</p>
+                <form method="post">
+                    <button type="submit" class="btn sc-btn-primary w-100">Log out</button>
+                </form>
+            }
+            else
+            {
+                <p class="text-muted">You have been logged out.</p>
+                <a class="btn sc-btn-primary w-100" asp-page="./Login">Log in again</a>
+            }
+        </div>
+    </div>
+</div>
+

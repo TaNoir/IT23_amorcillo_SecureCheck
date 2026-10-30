@@ -1,0 +1,128 @@
+@inject IAuthorizationService AuthorizationService
+@{
+    var isSignedIn = User.Identity?.IsAuthenticated == true;
+    var canAudit = isSignedIn && (await AuthorizationService.AuthorizeAsync(User, AppPolicies.Audit)).Succeeded;
+    var canManage = isSignedIn && (await AuthorizationService.AuthorizeAsync(User, AppPolicies.Manage)).Succeeded;
+    var currentPath = Context.Request.Path.Value ?? "/";
+
+    // Highlights the active nav link.
+    string Active(string prefix) =>
+        (prefix == "/" ? currentPath == "/" || currentPath.Equals("/Index", StringComparison.OrdinalIgnoreCase)
+                       : currentPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] is string t && t.Length > 0 ? $"{t} - SecureCheck" : "SecureCheck")</title>
+    <link rel="icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark sc-navbar shadow-sm">
+            <div class="container-fluid">
+                <a class="navbar-brand d-flex align-items-center gap-2" asp-page="/Index">
+                    <img src="~/img/logo.png" alt="SecureCheck logo" class="sc-logo"
+                         onerror="this.style.display='none';this.nextElementSibling.classList.remove('d-none');" />
+                    <i class="bi bi-shield-check fs-4 d-none" aria-hidden="true"></i>
+                    <span class="fw-semibold">SecureCheck</span>
+                </a>
+
+                @if (isSignedIn)
+                {
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                            aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div class="collapse navbar-collapse" id="mainNav">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item">
+                                <a class="nav-link @Active("/")" href="~/"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @Active("/Computers")" href="~/Computers"><i class="bi bi-pc-display me-1"></i>Computers</a>
+                            </li>
+                            @if (canAudit)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link @Active("/Audits/Run")" href="~/Audits/Run"><i class="bi bi-play-circle me-1"></i>Run Audit</a>
+                                </li>
+                            }
+                            <li class="nav-item">
+                                <a class="nav-link @(currentPath.StartsWith("/Audits", StringComparison.OrdinalIgnoreCase) && !currentPath.StartsWith("/Audits/Run", StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                   href="~/Audits"><i class="bi bi-clock-history me-1"></i>Audit History</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @Active("/Alerts")" href="~/Alerts"><i class="bi bi-exclamation-triangle me-1"></i>Alerts</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @Active("/Reports")" href="~/Reports"><i class="bi bi-file-earmark-text me-1"></i>Reports</a>
+                            </li>
+                            @if (canManage)
+                            {
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle @Active("/Admin")" href="#" role="button"
+                                       data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-gear me-1"></i>Admin
+                                    </a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="~/Admin/Users"><i class="bi bi-people me-2"></i>Users</a></li>
+                                        <li><a class="dropdown-item" href="~/Admin/Checklist"><i class="bi bi-list-check me-2"></i>Checklist</a></li>
+                                        <li><a class="dropdown-item" href="~/Admin/Settings"><i class="bi bi-sliders me-2"></i>Settings</a></li>
+                                    </ul>
+                                </li>
+                            }
+                        </ul>
+
+                        <ul class="navbar-nav ms-auto align-items-lg-center">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-circle me-1"></i>@User.GetFullName()
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><span class="dropdown-item-text small text-muted">@User.Identity?.Name</span></li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/ChangePassword">
+                                            <i class="bi bi-key me-2"></i>Change password
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <form method="post" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/">
+                                            <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>Log out</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                }
+            </div>
+        </nav>
+    </header>
+
+    <main role="main" class="flex-grow-1 py-4">
+        <div class="container-xl">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="sc-footer py-3 mt-auto">
+        <div class="container-xl text-center small">
+            SecureCheck &mdash; IT23/L Project
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

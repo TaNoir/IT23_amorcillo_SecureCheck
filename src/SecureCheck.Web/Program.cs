@@ -1,0 +1,72 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using SecureCheck.Web.Data;
+using SecureCheck.Web.Models;
+using SecureCheck.Web.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// ---------- Database ----------
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+
+// ---------- Identity (login + roles) ----------
+builder.Services
+    .AddDefaultIdentity<ApplicationUser>(SecurityConfig.ConfigureIdentity)
+    .AddRoles<IdentityRole>()
+    .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>()
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Identity/Account/Login";
+    options.LogoutPath = "/Identity/Account/Logout";
+    options.AccessDeniedPath = "/Identity/Account/AccessDenied";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+});
+
+builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
+
+// ---------- Authorization ----------
+// Fallback = logged-in user; ManagePolicy = Administrator; AuditPolicy = Administrator or Auditor.
+builder.Services.AddAuthorization(SecurityConfig.ConfigureAuthorization);
+
+builder.Services.AddRazorPages(options =>
+{
+    // Everything under /Admin is Administrator-only.
+    options.Conventions.AuthorizeFolder("/Admin", AppPolicies.Manage);
+});
+
+var app = builder.Build();
+
+// ---------- HTTP pipeline ----------
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+
+// Block Identity UI pages we don't use (Register, ForgotPassword, ...) before anything else serves them.
+app.UseIdentityPageAllowList();
+
+app.UseStaticFiles();
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapRazorPages();
+
+// Create/upgrade the database, roles and first admin.
+await DbSeeder.SeedAsync(app.Services);
+
+app.Run();
+
+// Exposed for integration tests (WebApplicationFactory).
+public partial class Program { }

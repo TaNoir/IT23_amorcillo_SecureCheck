@@ -1,0 +1,136 @@
+/* =========================================================
+   SecureCheck theme — brand colors from the logo
+   ========================================================= */
+:root {
+    --sc-navy: #0A3061;
+    --sc-navy-dark: #072448;
+    --sc-green: #168653;
+    --sc-yellow: #E5B72E;
+    --sc-orange: #EC8A3C;
+    --sc-red: #F45D5B;
+    --sc-gray: #8A94A6;
+    --sc-bg: #F4F6FA;
+    --sc-border: #E2E7EF;
+    --sc-radius: .75rem;
+}
+
+html {
+    font-size: 15px;
+    position: relative;
+}
+
+@media (min-width: 768px) {
+    html { font-size: 16px; }
+}
+
+body {
+    background-color: var(--sc-bg);
+    color: #1F2937;
+}
+
+h1, h2, h3, h4, h5, h6, .sc-heading {
+    color: var(--sc-navy);
+}
+
+a {
+    color: var(--sc-navy);
+}
+
+/* ---------- Navbar / footer ---------- */
+.sc-navbar {
+    background-color: var(--sc-navy);
+}
+
+.sc-navbar .nav-link {
+    color: rgba(255, 255, 255, .8);
+    border-radius: .375rem;
+}
+
+.sc-navbar .nav-link:hover,
+.sc-navbar .nav-link:focus,
+.sc-navbar .nav-link.active {
+    color: #fff;
+    background-color: rgba(255, 255, 255, .1);
+}
+
+.sc-logo {
+    height: 34px;
+    width: auto;
+}
+
+.sc-footer {
+    background-color: #fff;
+    border-top: 1px solid var(--sc-border);
+    color: var(--sc-gray);
+}
+
+/* ---------- Cards ---------- */
+.sc-card {
+    border: 1px solid var(--sc-border);
+    border-radius: var(--sc-radius);
+    box-shadow: 0 1px 3px rgba(10, 48, 97, .06);
+    background-color: #fff;
+}
+
+.sc-card > .card-header {
+    background-color: #fff;
+    border-bottom: 1px solid var(--sc-border);
+    font-weight: 600;
+    color: var(--sc-navy);
+    border-top-left-radius: var(--sc-radius);
+    border-top-right-radius: var(--sc-radius);
+}
+
+/* ---------- Buttons ---------- */
+.sc-btn-primary,
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: var(--sc-navy);
+    --bs-btn-border-color: var(--sc-navy);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: var(--sc-navy-dark);
+    --bs-btn-hover-border-color: var(--sc-navy-dark);
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: var(--sc-navy-dark);
+    --bs-btn-active-border-color: var(--sc-navy-dark);
+    --bs-btn-disabled-bg: var(--sc-navy);
+    --bs-btn-disabled-border-color: var(--sc-navy);
+}
+
+.btn:focus, .btn:active:focus, .form-control:focus, .form-select:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 .2rem rgba(10, 48, 97, .25);
+}
+
+/* ---------- Risk / status badges (use everywhere for consistent colors) ---------- */
+.badge.risk-low, .risk-low { background-color: var(--sc-green); color: #fff; }
+.badge.risk-medium, .risk-medium { background-color: var(--sc-yellow); color: #1F2937; }
+.badge.risk-high, .risk-high { background-color: var(--sc-orange); color: #fff; }
+.badge.risk-critical, .risk-critical { background-color: var(--sc-red); color: #fff; }
+.badge.status-error, .status-error { background-color: var(--sc-gray); color: #fff; }
+.badge.sc-badge-navy { background-color: var(--sc-navy); color: #fff; }
+
+/* Text-color helpers for scores */
+.text-sc-green { color: var(--sc-green) !important; }
+.text-sc-yellow { color: var(--sc-yellow) !important; }
+.text-sc-orange { color: var(--sc-orange) !important; }
+.text-sc-red { color: var(--sc-red) !important; }
+.text-sc-gray { color: var(--sc-gray) !important; }
+
+/* ---------- Login page ---------- */
+.sc-auth-wrapper {
+    min-height: 65vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sc-auth-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+.sc-auth-logo {
+    height: 72px;
+    width: auto;
+}
+

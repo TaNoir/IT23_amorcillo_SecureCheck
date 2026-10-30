@@ -1,0 +1,17 @@
+@page
+@model AccessDeniedModel
+@{
+    ViewData["Title"] = "Access denied";
+}
+
+<div class="sc-auth-wrapper">
+    <div class="card sc-card sc-auth-card">
+        <div class="card-body p-4 text-center">
+            <i class="bi bi-shield-lock display-5 text-sc-red"></i>
+            <h1 class="h4 sc-heading mt-3">Access denied</h1>
+            <p class="text-muted">Your role does not have permission to open this page.</p>
+            <a class="btn sc-btn-primary w-100" href="~/">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
