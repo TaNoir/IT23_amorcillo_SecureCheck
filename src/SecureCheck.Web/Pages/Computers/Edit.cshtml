@@ -2,15 +2,39 @@
 @model SecureCheck.Web.Pages.Computers.EditModel
 @{
     ViewData["Title"] = "Edit Computer";
+    var currentMode = PowerShellRunner.DetermineMode(Model.Input.HostName);
 }
 
-<div class="mb-4">
-    <a asp-page="./Index" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Back to Computers</a>
-    <h1 class="h3 mt-1 mb-0 sc-heading"><i class="bi bi-pencil-square me-2"></i>Edit Computer</h1>
+<div class="d-flex flex-wrap align-items-end justify-content-between mb-4 gap-2">
+    <div>
+        <a asp-page="./Index" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Back to Computers</a>
+        <h1 class="h3 mt-1 mb-0 sc-heading"><i class="bi bi-pencil-square me-2"></i>Edit Computer</h1>
+    </div>
+    <form method="post" asp-page-handler="TestConnection" asp-route-id="@Model.Input.Id">
+        <button type="submit" class="btn btn-outline-primary" data-loading-text="Testing connection...">
+            <i class="bi bi-plug me-1"></i>Test Connection
+        </button>
+    </form>
 </div>
 
 <div class="row">
     <div class="col-lg-8">
+        @if (!string.IsNullOrWhiteSpace(Model.TestSuccessMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-1"></i>@Model.TestSuccessMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.TestErrorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-octagon me-1"></i>@Model.TestErrorMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
         <div class="card sc-card">
             <div class="card-body p-4">
                 <form method="post" autocomplete="off">
@@ -26,7 +50,9 @@
 
                         <div class="col-md-6">
                             <label asp-for="Input.HostName" class="form-label fw-semibold"></label>
-                            <input asp-for="Input.HostName" class="form-control" />
+                            <input asp-for="Input.HostName" class="form-control"
+                                   placeholder="e.g. localhost, 192.168.56.101, or demo:weak" />
+                            <div class="form-text small">Use <code>localhost</code> for this PC, a hostname/IP for WinRM, or <code>demo:weak</code> / <code>demo:secure</code> / <code>demo:error</code>.</div>
                             <span asp-validation-for="Input.HostName" class="text-danger small"></span>
                         </div>
 
@@ -54,7 +80,15 @@
 
                     <div class="d-flex flex-wrap align-items-center justify-content-between mb-1 gap-2">
                         <h2 class="h6 sc-heading mb-0"><i class="bi bi-key me-1"></i>Audit Credential (Optional)</h2>
-                        @if (Model.HasStoredCredential)
+                        @if (currentMode == ExecutionMode.Local)
+                        {
+                            <span class="badge sc-badge-navy"><i class="bi bi-laptop me-1"></i>Local machine (no credential needed)</span>
+                        }
+                        else if (currentMode == ExecutionMode.Demo)
+                        {
+                            <span class="badge sc-badge-navy"><i class="bi bi-cpu me-1"></i>Simulated demo (no credential needed)</span>
+                        }
+                        else if (Model.HasStoredCredential)
                         {
                             <span class="badge risk-low"><i class="bi bi-lock-fill me-1"></i>Custom credential saved</span>
                         }
@@ -64,7 +98,11 @@
                         }
                     </div>
                     <p class="text-muted small mb-3">
-                        @if (Model.HasStoredCredential)
+                        @if (currentMode is ExecutionMode.Local or ExecutionMode.Demo)
+                        {
+                            <span>Local and simulated demo endpoints run without WinRM credentials.</span>
+                        }
+                        else if (Model.HasStoredCredential)
                         {
                             <span>Leave the password field blank to keep the current encrypted password.</span>
                         }
@@ -116,4 +154,3 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
-

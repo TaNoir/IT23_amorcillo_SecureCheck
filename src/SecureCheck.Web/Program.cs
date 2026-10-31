@@ -22,6 +22,7 @@ Directory.CreateDirectory(keysDirectory);
 builder.Services.AddSecureCheckDataProtection(new DirectoryInfo(keysDirectory));
 
 builder.Services.AddSingleton<CredentialProtector>();
+builder.Services.AddSingleton<PowerShellRunner>();
 builder.Services.AddScoped<ActivityLogService>();
 
 // ---------- Identity (login + roles) ----------

@@ -15,21 +15,33 @@ public class EditModel : PageModel
     private readonly ApplicationDbContext _db;
     private readonly CredentialProtector _protector;
     private readonly ActivityLogService _activityLog;
+    private readonly PowerShellRunner _runner;
+    private readonly IAuthorizationService _authorizationService;
 
     public EditModel(
         ApplicationDbContext db,
         CredentialProtector protector,
-        ActivityLogService activityLog)
+        ActivityLogService activityLog,
+        PowerShellRunner runner,
+        IAuthorizationService authorizationService)
     {
         _db = db;
         _protector = protector;
         _activityLog = activityLog;
+        _runner = runner;
+        _authorizationService = authorizationService;
     }
 
     [BindProperty]
     public InputModel Input { get; set; } = new();
 
     public bool HasStoredCredential { get; private set; }
+
+    [TempData]
+    public string? TestSuccessMessage { get; set; }
+
+    [TempData]
+    public string? TestErrorMessage { get; set; }
 
     public class InputModel
     {
@@ -40,7 +52,7 @@ public class EditModel : PageModel
         public string Name { get; set; } = string.Empty;
 
         [Required, MaxLength(255)]
-        [RegularExpression(@"^[A-Za-z0-9.-]+$", ErrorMessage = "Host name or IP may contain only letters, digits, dots, and hyphens.")]
+        [RegularExpression(PowerShellRunner.HostNameValidationPattern, ErrorMessage = PowerShellRunner.HostNameValidationMessage)]
         [Display(Name = "Host Name or IP Address")]
         public string HostName { get; set; } = string.Empty;
 
@@ -90,6 +102,42 @@ public class EditModel : PageModel
         return Page();
     }
 
+    public async Task<IActionResult> OnPostTestConnectionAsync(int id)
+    {
+        if (!(await _authorizationService.AuthorizeAsync(User, AppPolicies.Audit)).Succeeded)
+            return Forbid();
+
+        var computer = await _db.Computers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+        if (computer is null)
+            return NotFound();
+
+        var result = await _runner.RunTestAsync(
+            computer,
+            PowerShellRunner.DefaultTestTimeoutSeconds,
+            HttpContext.RequestAborted);
+
+        if (result.Success)
+        {
+            var connectedMessage = $"Connected to {result.ComputerName} (PowerShell {result.PowerShellVersion})";
+            await _activityLog.LogAsync(
+                User.Identity?.Name,
+                "Tested Connection",
+                $"{computer.Name} ({computer.HostName}): Succeeded — {connectedMessage}");
+            TestSuccessMessage = connectedMessage;
+        }
+        else
+        {
+            var friendlyError = result.ErrorMessage ?? "Connection test failed.";
+            await _activityLog.LogAsync(
+                User.Identity?.Name,
+                "Tested Connection",
+                $"{computer.Name} ({computer.HostName}): Failed ({result.ErrorKind}) — {friendlyError}");
+            TestErrorMessage = friendlyError;
+        }
+
+        return RedirectToPage("./Edit", new { id });
+    }
+
     public async Task<IActionResult> OnPostAsync(int id)
     {
         var computer = await _db.Computers.FirstOrDefaultAsync(c => c.Id == id);
@@ -136,12 +184,18 @@ public class EditModel : PageModel
         computer.Description = description;
         computer.IsActive = Input.IsActive;
 
+        var mode = PowerShellRunner.DetermineMode(computer.HostName);
         string credChangeNote;
         if (Input.ClearCredential || credUser is null)
         {
             computer.CredentialUserName = null;
             computer.CredentialPasswordProtected = null;
-            credChangeNote = "Uses default credential";
+            credChangeNote = mode switch
+            {
+                ExecutionMode.Local => "Local machine (no credential needed)",
+                ExecutionMode.Demo => "Simulated demo (no credential needed)",
+                _ => "Uses default credential"
+            };
         }
         else if (!string.IsNullOrEmpty(credPass))
         {
@@ -166,4 +220,3 @@ public class EditModel : PageModel
         return RedirectToPage("./Index");
     }
 }
-

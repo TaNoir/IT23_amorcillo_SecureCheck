@@ -1,0 +1,118 @@
+@page
+@model SecureCheck.Web.Pages.Admin.Diagnostics.IndexModel
+@{
+    ViewData["Title"] = "Script Diagnostics";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1 sc-heading"><i class="bi bi-terminal me-2"></i>Script Diagnostics</h1>
+        <p class="text-muted small mb-0">
+            Run <code>Invoke-SecureCheckAudit.ps1</code> against a single computer and inspect the raw JSON payload.
+        </p>
+    </div>
+</div>
+
+@if (Model.Computers.Count == 0)
+{
+    <div class="card sc-card">
+        <div class="card-body p-5 text-center text-muted">
+            <i class="bi bi-pc-display fs-1 d-block mb-2"></i>
+            <p class="mb-3">No computers have been added yet.</p>
+            <a asp-page="/Computers/Create" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Add Computer
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card sc-card mb-4">
+        <div class="card-body">
+            <form method="post" class="row g-3 align-items-end">
+                <div class="col-md-8 col-lg-6">
+                    <label for="computerSelect" class="form-label fw-semibold">Target Computer</label>
+                    <select id="computerSelect" asp-for="SelectedComputerId" class="form-select">
+                        @foreach (var c in Model.Computers)
+                        {
+                            var mode = PowerShellRunner.DetermineMode(c.HostName);
+                            var modeLabel = mode switch
+                            {
+                                ExecutionMode.Local => "Local Machine",
+                                ExecutionMode.Demo => "Simulated Demo",
+                                _ => "Remote WinRM"
+                            };
+                            var inactiveSuffix = c.IsActive ? "" : " [Inactive]";
+                            <option value="@c.Id">@c.Name (@c.HostName) — @modeLabel@inactiveSuffix</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <button type="submit" class="btn btn-primary w-100" data-loading-text="Running script...">
+                        <i class="bi bi-play-fill me-1"></i>Run Script
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                    <i class="bi bi-exclamation-octagon me-1"></i>
+                    @if (Model.ExecutedComputer is not null)
+                    {
+                        <strong>@Model.ExecutedComputer.Name (@Model.ExecutedComputer.HostName):</strong>
+                    }
+                    <span>@Model.ErrorMessage</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    @if (Model.ErrorKind.HasValue)
+                    {
+                        <span class="badge status-error">@Model.ErrorKind.Value</span>
+                    }
+                    @if (Model.Duration.HasValue)
+                    {
+                        <span class="small text-muted">@Model.Duration.Value.TotalSeconds.ToString("F2")s</span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.PrettyJson) && Model.ExecutedComputer is not null)
+    {
+        <div class="card sc-card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span><i class="bi bi-filetype-json me-1"></i>@Model.ExecutedComputer.Name (<code>@Model.ExecutedComputer.HostName</code>)</span>
+                    @if (Model.ExecutedMode == ExecutionMode.Local)
+                    {
+                        <span class="badge sc-badge-navy">Local Machine</span>
+                    }
+                    else if (Model.ExecutedMode == ExecutionMode.Demo)
+                    {
+                        <span class="badge sc-badge-navy">Simulated Demo</span>
+                    }
+                    else
+                    {
+                        <span class="badge sc-badge-navy">Remote WinRM</span>
+                    }
+                    @if (Model.Duration.HasValue)
+                    {
+                        <span class="badge risk-low">@Model.Duration.Value.TotalSeconds.ToString("F2")s</span>
+                    }
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-copy-target="#diagnosticsJsonOutput">
+                    <i class="bi bi-clipboard me-1"></i>Copy JSON
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <pre id="diagnosticsJsonOutput" class="bg-dark text-light p-3 mb-0 small rounded-bottom" style="max-height: 620px; overflow: auto;"><code>@Model.PrettyJson</code></pre>
+            </div>
+        </div>
+    }
+}
+

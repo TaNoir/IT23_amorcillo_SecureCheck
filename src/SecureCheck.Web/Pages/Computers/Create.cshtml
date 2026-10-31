@@ -25,7 +25,8 @@
 
                         <div class="col-md-6">
                             <label asp-for="Input.HostName" class="form-label fw-semibold"></label>
-                            <input asp-for="Input.HostName" class="form-control" placeholder="e.g. 192.168.56.101" />
+                            <input asp-for="Input.HostName" class="form-control" placeholder="e.g. localhost, 192.168.56.101, or demo:weak" />
+                            <div class="form-text small">Use <code>localhost</code> for this PC, a hostname/IP for WinRM, or <code>demo:weak</code> / <code>demo:secure</code> / <code>demo:error</code>.</div>
                             <span asp-validation-for="Input.HostName" class="text-danger small"></span>
                         </div>
 

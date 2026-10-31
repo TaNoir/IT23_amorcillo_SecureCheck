@@ -20,6 +20,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.4.22" />
+    <!-- Aligns transitive Roslyn version between EF Core Design (>= 4.5.0) and PowerShell.SDK 7.4.x (>= 4.9.2). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.9.2" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

@@ -25,6 +25,14 @@
     </div>
 }
 
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-octagon me-1"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
 <div class="card sc-card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3 align-items-end">
@@ -89,7 +97,7 @@
                             <th>Credential</th>
                             <th>Last Audit</th>
                             <th>Status</th>
-                            @if (Model.CanManage)
+                            @if (Model.CanAudit || Model.CanManage)
                             {
                                 <th class="text-end pe-3">Actions</th>
                             }
@@ -98,6 +106,7 @@
                     <tbody>
                         @foreach (var c in Model.Computers)
                         {
+                            var execMode = PowerShellRunner.DetermineMode(c.HostName);
                             <tr class="@(c.IsActive ? "" : "table-light text-muted")">
                                 <td class="ps-3">
                                     <div class="fw-semibold">@c.Name</div>
@@ -109,7 +118,15 @@
                                 <td><code>@c.HostName</code></td>
                                 <td>@(string.IsNullOrWhiteSpace(c.Location) ? "—" : c.Location)</td>
                                 <td>
-                                    @if (string.IsNullOrWhiteSpace(c.CredentialUserName))
+                                    @if (execMode == ExecutionMode.Local)
+                                    {
+                                        <span class="text-muted small"><i class="bi bi-laptop me-1"></i>Local machine (no credential needed)</span>
+                                    }
+                                    else if (execMode == ExecutionMode.Demo)
+                                    {
+                                        <span class="text-muted small"><i class="bi bi-cpu me-1"></i>Simulated demo (no credential needed)</span>
+                                    }
+                                    else if (string.IsNullOrWhiteSpace(c.CredentialUserName))
                                     {
                                         <span class="text-muted small"><i class="bi bi-key me-1"></i>Uses default credential</span>
                                     }
@@ -152,32 +169,48 @@
                                         <span class="badge status-error">Inactive</span>
                                     }
                                 </td>
-                                @if (Model.CanManage)
+                                @if (Model.CanAudit || Model.CanManage)
                                 {
                                     <td class="text-end pe-3">
                                         <div class="d-inline-flex gap-1">
-                                            <a asp-page="./Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-pencil me-1"></i>Edit
-                                            </a>
-                                            <form method="post" asp-page-handler="ToggleActive" class="d-inline">
-                                                <input type="hidden" name="id" value="@c.Id" />
-                                                <input type="hidden" name="search" value="@Model.Search" />
-                                                <input type="hidden" name="location" value="@Model.Location" />
-                                                <input type="hidden" name="status" value="@Model.Status" />
-                                                @if (c.IsActive)
-                                                {
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                            data-confirm="Deactivate @c.Name? Inactive computers will not appear in new audit runs.">
-                                                        Deactivate
+                                            @if (Model.CanAudit)
+                                            {
+                                                <form method="post" asp-page-handler="TestConnection" class="d-inline">
+                                                    <input type="hidden" name="id" value="@c.Id" />
+                                                    <input type="hidden" name="search" value="@Model.Search" />
+                                                    <input type="hidden" name="location" value="@Model.Location" />
+                                                    <input type="hidden" name="status" value="@Model.Status" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                            data-loading-text="Testing...">
+                                                        <i class="bi bi-plug me-1"></i>Test Connection
                                                     </button>
-                                                }
-                                                else
-                                                {
-                                                    <button type="submit" class="btn btn-sm btn-outline-success">
-                                                        Activate
-                                                    </button>
-                                                }
-                                            </form>
+                                                </form>
+                                            }
+                                            @if (Model.CanManage)
+                                            {
+                                                <a asp-page="./Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-pencil me-1"></i>Edit
+                                                </a>
+                                                <form method="post" asp-page-handler="ToggleActive" class="d-inline">
+                                                    <input type="hidden" name="id" value="@c.Id" />
+                                                    <input type="hidden" name="search" value="@Model.Search" />
+                                                    <input type="hidden" name="location" value="@Model.Location" />
+                                                    <input type="hidden" name="status" value="@Model.Status" />
+                                                    @if (c.IsActive)
+                                                    {
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                                data-confirm="Deactivate @c.Name? Inactive computers will not appear in new audit runs.">
+                                                            Deactivate
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="submit" class="btn btn-sm btn-outline-success">
+                                                            Activate
+                                                        </button>
+                                                    }
+                                                </form>
+                                            }
                                         </div>
                                     </td>
                                 }
@@ -189,4 +222,3 @@
         }
     </div>
 </div>
-

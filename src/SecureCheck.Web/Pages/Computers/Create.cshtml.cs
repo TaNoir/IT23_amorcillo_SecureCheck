@@ -36,7 +36,7 @@ public class CreateModel : PageModel
         public string Name { get; set; } = string.Empty;
 
         [Required, MaxLength(255)]
-        [RegularExpression(@"^[A-Za-z0-9.-]+$", ErrorMessage = "Host name or IP may contain only letters, digits, dots, and hyphens.")]
+        [RegularExpression(PowerShellRunner.HostNameValidationPattern, ErrorMessage = PowerShellRunner.HostNameValidationMessage)]
         [Display(Name = "Host Name or IP Address")]
         public string HostName { get; set; } = string.Empty;
 
@@ -106,7 +106,14 @@ public class CreateModel : PageModel
         _db.Computers.Add(computer);
         await _db.SaveChangesAsync();
 
-        var credSummary = credUser is not null ? $"Custom ({credUser})" : "Uses default credential";
+        var mode = PowerShellRunner.DetermineMode(computer.HostName);
+        var credSummary = credUser is not null
+            ? $"Custom ({credUser})"
+            : mode == ExecutionMode.Local
+                ? "Local machine (no credential needed)"
+                : mode == ExecutionMode.Demo
+                    ? "Simulated demo (no credential needed)"
+                    : "Uses default credential";
         await _activityLog.LogAsync(
             User.Identity?.Name,
             "Created Computer",
