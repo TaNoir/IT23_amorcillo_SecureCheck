@@ -77,5 +77,15 @@ public class SecurityConfigTests
         Assert.Equal(TimeSpan.FromMinutes(10), options.Lockout.DefaultLockoutTimeSpan);
         Assert.True(options.Lockout.AllowedForNewUsers);
     }
+
+    [Fact]
+    public void Security_stamp_is_revalidated_within_one_minute()
+    {
+        // Deactivated or demoted users must lose their session quickly (default is 30 minutes).
+        var options = new SecurityStampValidatorOptions();
+        SecurityConfig.ConfigureSecurityStamp(options);
+
+        Assert.True(options.ValidationInterval <= TimeSpan.FromMinutes(1));
+    }
 }
 

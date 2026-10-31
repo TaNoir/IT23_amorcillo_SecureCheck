@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SecureCheck.Web.Data;
@@ -19,9 +18,8 @@ var keysDirectory = Path.Combine(
     "keys");
 Directory.CreateDirectory(keysDirectory);
 
-builder.Services.AddDataProtection()
-    .SetApplicationName("SecureCheck")
-    .PersistKeysToFileSystem(new DirectoryInfo(keysDirectory));
+// Key files are encrypted at rest with DPAPI (see SecurityConfig).
+builder.Services.AddSecureCheckDataProtection(new DirectoryInfo(keysDirectory));
 
 builder.Services.AddSingleton<CredentialProtector>();
 builder.Services.AddScoped<ActivityLogService>();
@@ -43,6 +41,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
 });
+
+// Re-check the cookie every minute so deactivated/demoted users are signed out quickly.
+builder.Services.Configure<SecurityStampValidatorOptions>(SecurityConfig.ConfigureSecurityStamp);
 
 builder.Services.Configure<SeedAdminOptions>(builder.Configuration.GetSection(SeedAdminOptions.SectionName));
 

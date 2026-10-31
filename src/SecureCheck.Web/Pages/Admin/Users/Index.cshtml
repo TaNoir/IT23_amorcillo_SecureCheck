@@ -156,7 +156,7 @@
                                             <form method="post" asp-page-handler="Deactivate" class="d-inline">
                                                 <input type="hidden" name="userId" value="@u.Id" />
                                                 <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                        onclick="return confirm('Deactivate @u.FullName (@u.Email)? They will be locked out immediately.');">
+                                                        data-confirm="Deactivate @u.FullName (@u.Email)? They will be signed out within a minute and cannot log in.">
                                                     Deactivate
                                                 </button>
                                             </form>

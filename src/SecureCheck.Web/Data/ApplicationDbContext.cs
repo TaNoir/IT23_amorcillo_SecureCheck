@@ -24,16 +24,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        // Note: bool flags (IsActive/IsEnabled) deliberately have NO database default.
+        // With HasDefaultValue(true), EF treats 'false' as "not set" and the DB would save 'true'.
+        // The C# initializers (= true) already give new rows the right default.
+
         builder.Entity<ApplicationUser>(b =>
         {
             b.Property(u => u.FullName).HasMaxLength(100).IsRequired();
-            b.Property(u => u.IsActive).HasDefaultValue(true);
         });
 
         builder.Entity<Computer>(b =>
         {
             b.HasIndex(c => c.Name).IsUnique();
-            b.Property(c => c.IsActive).HasDefaultValue(true);
             b.Property(c => c.LastRiskLevel).HasConversion<string>().HasMaxLength(32);
         });
 
@@ -42,7 +44,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             b.HasIndex(c => c.Code).IsUnique();
             b.Property(c => c.Category).HasConversion<string>().HasMaxLength(40);
             b.Property(c => c.RiskLevel).HasConversion<string>().HasMaxLength(32);
-            b.Property(c => c.IsEnabled).HasDefaultValue(true);
         });
 
         builder.Entity<AuditRun>(b =>

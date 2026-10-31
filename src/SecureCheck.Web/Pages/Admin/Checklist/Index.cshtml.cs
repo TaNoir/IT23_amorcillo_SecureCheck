@@ -167,11 +167,16 @@ public class IndexModel : PageModel
     }
 
     private Task<List<CheckDefinition>> LoadOrderedChecksAsync() =>
-        _db.CheckDefinitions
-            .OrderBy(c => c.Category)
-            .ThenBy(c => c.SortOrder)
-            .ThenBy(c => c.Code)
-            .ToListAsync();
+        ApplyDisplayOrder(_db.CheckDefinitions).ToListAsync();
+
+    /// <summary>
+    /// Brief order (Firewall, Updates, Antivirus, Accounts, Services) comes from SortOrder.
+    /// Do NOT order by Category: it is stored as a string, so SQL would sort it alphabetically.
+    /// </summary>
+    internal static IQueryable<CheckDefinition> ApplyDisplayOrder(IQueryable<CheckDefinition> query) =>
+        query
+            .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Code);
 
     private static CheckItemInput MapToInput(CheckDefinition c) => new()
     {

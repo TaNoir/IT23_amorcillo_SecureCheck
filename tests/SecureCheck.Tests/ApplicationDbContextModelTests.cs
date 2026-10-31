@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using SecureCheck.Web.Data;
 using SecureCheck.Web.Models;
 
@@ -72,5 +73,29 @@ public class ApplicationDbContextModelTests
         var computerAuditFk = checkResultEntity.GetForeignKeys()
             .Single(fk => fk.PrincipalEntityType.ClrType == typeof(ComputerAudit));
         Assert.Equal(DeleteBehavior.Cascade, computerAuditFk.DeleteBehavior);
+    }
+
+    [Theory]
+    [InlineData(typeof(ApplicationUser), nameof(ApplicationUser.IsActive))]
+    [InlineData(typeof(Computer), nameof(Computer.IsActive))]
+    [InlineData(typeof(CheckDefinition), nameof(CheckDefinition.IsEnabled))]
+    public void Bool_flags_have_no_database_default_so_false_is_actually_saved(Type entityClrType, string propertyName)
+    {
+        // With HasDefaultValue(true), EF skips 'false' on INSERT and the DB stores 'true'.
+        using var db = CreateContext();
+
+        var property = db.Model.FindEntityType(entityClrType)!.FindProperty(propertyName)!;
+
+        Assert.False(property.TryGetDefaultValue(out _));
+        Assert.Null(property.GetDefaultValueSql());
+        Assert.Equal(ValueGenerated.Never, property.ValueGenerated);
+    }
+
+    [Fact]
+    public void Bool_flags_default_to_true_for_new_objects()
+    {
+        Assert.True(new ApplicationUser().IsActive);
+        Assert.True(new Computer().IsActive);
+        Assert.True(new CheckDefinition().IsEnabled);
     }
 }

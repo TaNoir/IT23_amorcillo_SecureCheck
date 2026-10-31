@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using SecureCheck.Web.Models;
 
@@ -43,6 +44,34 @@ public static class SecurityConfig
         options.AddPolicy(AppPolicies.Audit, p => p
             .RequireAuthenticatedUser()
             .RequireRole(AppRoles.Administrator, AppRoles.Auditor));
+    }
+
+    /// <summary>
+    /// How often the login cookie is re-checked against the database.
+    /// Deactivating a user or changing their role updates the security stamp,
+    /// so their existing session ends within this interval (default would be 30 minutes).
+    /// </summary>
+    public static readonly TimeSpan SecurityStampValidationInterval = TimeSpan.FromMinutes(1);
+
+    public static void ConfigureSecurityStamp(SecurityStampValidatorOptions options)
+    {
+        options.ValidationInterval = SecurityStampValidationInterval;
+    }
+
+    /// <summary>
+    /// Data Protection for encrypted audit credentials.
+    /// Keys are persisted so passwords still decrypt after a restart, and the key files
+    /// themselves are encrypted with Windows DPAPI (otherwise they are written in plain text).
+    /// </summary>
+    public static IDataProtectionBuilder AddSecureCheckDataProtection(this IServiceCollection services, DirectoryInfo keysDirectory)
+    {
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException("SecureCheck runs on Windows only (DPAPI is used to protect encryption keys).");
+
+        return services.AddDataProtection()
+            .SetApplicationName("SecureCheck")
+            .PersistKeysToFileSystem(keysDirectory)
+            .ProtectKeysWithDpapi();
     }
 }
 
