@@ -8,7 +8,7 @@
     <div>
         <h1 class="h3 mb-1 sc-heading"><i class="bi bi-terminal me-2"></i>Script Diagnostics</h1>
         <p class="text-muted small mb-0">
-            Run <code>Invoke-SecureCheckAudit.ps1</code> against a single computer and inspect the raw JSON payload.
+            Run <code>Invoke-SecureCheckAudit.ps1</code> against a single computer, preview checklist evaluation results, and inspect the raw JSON payload.
         </p>
     </div>
 </div>
@@ -30,7 +30,7 @@ else
     <div class="card sc-card mb-4">
         <div class="card-body">
             <form method="post" class="row g-3 align-items-end">
-                <div class="col-md-8 col-lg-6">
+                <div class="col-md-12 col-lg-6">
                     <label for="computerSelect" class="form-label fw-semibold">Target Computer</label>
                     <select id="computerSelect" asp-for="SelectedComputerId" class="form-select">
                         @foreach (var c in Model.Computers)
@@ -47,9 +47,15 @@ else
                         }
                     </select>
                 </div>
-                <div class="col-md-4 col-lg-3">
-                    <button type="submit" class="btn btn-primary w-100" data-loading-text="Running script...">
-                        <i class="bi bi-play-fill me-1"></i>Run Script
+                <div class="col-sm-6 col-lg-3">
+                    <button type="submit" asp-page-handler="RunAndEvaluate" class="btn btn-primary w-100"
+                            data-loading-text="Running & evaluating...">
+                        <i class="bi bi-clipboard2-check me-1"></i>Run &amp; Evaluate
+                    </button>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <button type="submit" class="btn btn-outline-secondary w-100" data-loading-text="Running script...">
+                        <i class="bi bi-play-fill me-1"></i>Run Script Only
                     </button>
                 </div>
             </form>
@@ -82,12 +88,183 @@ else
         </div>
     }
 
-    @if (!string.IsNullOrWhiteSpace(Model.PrettyJson) && Model.ExecutedComputer is not null)
+    @if (Model.Evaluation is not null)
+    {
+        <div class="alert alert-light border d-flex align-items-center gap-2 small mb-3" role="status">
+            <i class="bi bi-info-circle text-primary"></i>
+            <span>
+                <strong>Read-only preview:</strong> Evaluated against the currently enabled checklist items.
+                No audit history or alerts are saved from Diagnostics.
+            </span>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-xl-3">
+                <div class="card sc-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small fw-semibold mb-1">Security Score</div>
+                        <div class="d-flex align-items-baseline gap-2">
+                            <span class="display-6 fw-bold @Model.ScoreTextClass">
+                                @(Model.Evaluation.Score.HasValue ? Model.Evaluation.Score.Value.ToString() : "N/A")
+                            </span>
+                            @if (Model.Evaluation.Score.HasValue)
+                            {
+                                <span class="text-muted small">/ 100</span>
+                            }
+                            <span class="badge @Model.ScoreBadgeClass ms-auto">@Model.ScoreLabel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl-3">
+                <div class="card sc-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small fw-semibold mb-2">Overall Risk</div>
+                        @if (Model.Evaluation.OverallRisk.HasValue)
+                        {
+                            <span class="badge @Model.Evaluation.OverallRisk.Value.ToBadgeClass() fs-6">
+                                @Model.Evaluation.OverallRisk.Value
+                            </span>
+                        }
+                        else if (Model.Evaluation.Score.HasValue)
+                        {
+                            <span class="badge risk-low fs-6">
+                                <i class="bi bi-shield-check me-1"></i>Secure
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge status-error fs-6">Not Evaluated</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl-3">
+                <div class="card sc-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small fw-semibold mb-2">Check Summary</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge risk-low">@Model.Evaluation.Passed Pass</span>
+                            <span class="badge risk-critical">@Model.Evaluation.Failed Fail</span>
+                            <span class="badge status-error">@Model.Evaluation.Errors Error</span>
+                            @if (Model.Evaluation.Skipped > 0)
+                            {
+                                <span class="badge status-error">@Model.Evaluation.Skipped Skipped</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-xl-3">
+                <div class="card sc-card h-100">
+                    <div class="card-body">
+                        <div class="text-muted small fw-semibold mb-1">System Info</div>
+                        <div class="small fw-semibold text-truncate" title="@(Model.ParsedFacts?.Os?.Caption)">
+                            @(string.IsNullOrWhiteSpace(Model.ParsedFacts?.Os?.Caption) ? "Unknown OS" : Model.ParsedFacts.Os.Caption)
+                        </div>
+                        <div class="small text-muted">
+                            Host: <code>@(string.IsNullOrWhiteSpace(Model.ParsedFacts?.ComputerName) ? "—" : Model.ParsedFacts.ComputerName)</code>
+                            @if (!string.IsNullOrWhiteSpace(Model.ParsedFacts?.Os?.PsVersion))
+                            {
+                                <span class="ms-1">&bull; PS @Model.ParsedFacts.Os.PsVersion</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card sc-card mb-4">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <span>
+                    <i class="bi bi-list-check me-1"></i>Evaluation Results (@Model.Evaluation.Outcomes.Count enabled checks)
+                </span>
+                @if (Model.ExecutedComputer is not null)
+                {
+                    <span class="small text-muted fw-normal">
+                        Target: <strong>@Model.ExecutedComputer.Name</strong> (<code>@Model.ExecutedComputer.HostName</code>)
+                    </span>
+                }
+            </div>
+            <div class="card-body p-0">
+                @if (Model.Evaluation.Outcomes.Count == 0)
+                {
+                    <div class="p-4 text-center text-muted small">
+                        No checklist definitions are currently enabled. Enable checks in <a asp-page="/Admin/Checklist">Admin &gt; Checklist</a>.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3" style="width: 130px;">Code</th>
+                                    <th style="width: 22%;">Check</th>
+                                    <th style="width: 110px;">Risk</th>
+                                    <th style="width: 95px;">Status</th>
+                                    <th style="width: 150px;">Actual</th>
+                                    <th style="width: 150px;">Expected</th>
+                                    <th class="pe-3">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Evaluation.Outcomes)
+                                {
+                                    <tr>
+                                        <td class="ps-3"><code>@item.Code</code></td>
+                                        <td>
+                                            <div class="fw-semibold">@item.Name</div>
+                                            <div class="small text-muted">@item.Category.ToDisplayName()</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge @item.RiskLevel.ToBadgeClass()">@item.RiskLevel</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @item.Status.ToBadgeClass()">@item.Status</span>
+                                        </td>
+                                        <td class="small">
+                                            @(string.IsNullOrWhiteSpace(item.ActualValue) ? "—" : item.ActualValue)
+                                        </td>
+                                        <td class="small text-muted">
+                                            @(string.IsNullOrWhiteSpace(item.ExpectedValue) ? "—" : item.ExpectedValue)
+                                        </td>
+                                        <td class="small pe-3">
+                                            <div>@item.Message</div>
+                                            @if (item.Status == CheckStatus.Fail && !string.IsNullOrWhiteSpace(item.Remediation))
+                                            {
+                                                <div class="text-muted mt-1">
+                                                    <i class="bi bi-wrench-adjustable me-1"></i><strong>Fix:</strong> @item.Remediation
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.PrettyJson))
     {
         <div class="card sc-card">
             <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
                 <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span><i class="bi bi-filetype-json me-1"></i>@Model.ExecutedComputer.Name (<code>@Model.ExecutedComputer.HostName</code>)</span>
+                    @if (Model.ExecutedComputer is not null)
+                    {
+                        <span><i class="bi bi-filetype-json me-1"></i>@Model.ExecutedComputer.Name (<code>@Model.ExecutedComputer.HostName</code>)</span>
+                    }
+                    else
+                    {
+                        <span><i class="bi bi-filetype-json me-1"></i>Raw Audit JSON</span>
+                    }
+
                     @if (Model.ExecutedMode == ExecutionMode.Local)
                     {
                         <span class="badge sc-badge-navy">Local Machine</span>
@@ -96,18 +273,31 @@ else
                     {
                         <span class="badge sc-badge-navy">Simulated Demo</span>
                     }
-                    else
+                    else if (Model.ExecutedMode == ExecutionMode.Remote)
                     {
                         <span class="badge sc-badge-navy">Remote WinRM</span>
                     }
+
                     @if (Model.Duration.HasValue)
                     {
                         <span class="badge risk-low">@Model.Duration.Value.TotalSeconds.ToString("F2")s</span>
                     }
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-copy-target="#diagnosticsJsonOutput">
-                    <i class="bi bi-clipboard me-1"></i>Copy JSON
-                </button>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    @if (!string.IsNullOrWhiteSpace(Model.RawJson))
+                    {
+                        <form method="post" asp-page-handler="Evaluate" class="d-inline">
+                            <input type="hidden" name="SelectedComputerId" value="@Model.SelectedComputerId" />
+                            <input type="hidden" name="RawJson" value="@Model.RawJson" />
+                            <button type="submit" class="btn btn-sm btn-primary" data-loading-text="Evaluating...">
+                                <i class="bi bi-clipboard2-check me-1"></i>@(Model.Evaluation is null ? "Evaluate" : "Re-evaluate")
+                            </button>
+                        </form>
+                    }
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-copy-target="#diagnosticsJsonOutput">
+                        <i class="bi bi-clipboard me-1"></i>Copy JSON
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 <pre id="diagnosticsJsonOutput" class="bg-dark text-light p-3 mb-0 small rounded-bottom" style="max-height: 620px; overflow: auto;"><code>@Model.PrettyJson</code></pre>
@@ -115,4 +305,3 @@ else
         </div>
     }
 }
-

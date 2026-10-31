@@ -58,5 +58,14 @@ public static class EnumDisplayExtensions
         RiskLevel.Critical => "risk-critical",
         _ => "status-error"
     };
+
+    public static string ToBadgeClass(this CheckStatus status) => status switch
+    {
+        CheckStatus.Pass => "risk-low",
+        CheckStatus.Fail => "risk-critical",
+        CheckStatus.Error => "status-error",
+        CheckStatus.Skipped => "status-error",
+        _ => "status-error"
+    };
 }
 

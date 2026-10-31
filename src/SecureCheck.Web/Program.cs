@@ -23,6 +23,7 @@ builder.Services.AddSecureCheckDataProtection(new DirectoryInfo(keysDirectory));
 
 builder.Services.AddSingleton<CredentialProtector>();
 builder.Services.AddSingleton<PowerShellRunner>();
+builder.Services.AddSingleton<AuditEvaluator>();
 builder.Services.AddScoped<ActivityLogService>();
 
 // ---------- Identity (login + roles) ----------
