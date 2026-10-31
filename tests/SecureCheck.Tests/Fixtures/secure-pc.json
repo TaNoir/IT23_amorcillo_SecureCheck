@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "computerName": "SC-LAB-02",
+  "collectedAt": "2026-10-29T09:00:00.0000000+08:00",
+  "os": {
+    "caption": "Microsoft Windows 11 Enterprise Evaluation",
+    "version": "10.0.22631",
+    "psVersion": "5.1.22621.4391",
+    "psMajor": 5
+  },
+  "firewall": {
+    "error": null,
+    "profiles": [
+      { "name": "Domain", "enabled": true },
+      { "name": "Private", "enabled": true },
+      { "name": "Public", "enabled": true }
+    ]
+  },
+  "updates": {
+    "error": null,
+    "lastInstalledOn": "2026-10-20T00:00:00.0000000",
+    "latestHotFixId": "KB5031455",
+    "hotFixCount": 18,
+    "source": "Get-HotFix"
+  },
+  "antivirus": {
+    "error": null,
+    "antivirusEnabled": true,
+    "realTimeProtectionEnabled": true,
+    "signatureAgeDays": 1,
+    "signatureLastUpdated": "2026-10-28T20:00:00.0000000"
+  },
+  "accounts": {
+    "error": null,
+    "guest": {
+      "exists": true,
+      "enabled": false
+    },
+    "administrators": {
+      "count": 2,
+      "members": [
+        "SC-LAB-02\\Administrator",
+        "SC-LAB-02\\scaudit"
+      ]
+    },
+    "passwordPolicy": {
+      "minimumPasswordLength": 12,
+      "passwordComplexity": 1,
+      "lockoutBadCount": 5,
+      "source": "secedit"
+    }
+  },
+  "servicesAndFeatures": {
+    "error": null,
+    "remoteRegistry": {
+      "exists": true,
+      "status": "Stopped",
+      "startType": "Disabled"
+    },
+    "rdpEnabled": false,
+    "smb1": {
+      "serverProtocolEnabled": false,
+      "featureState": "Disabled"
+    },
+    "telnetClient": {
+      "featureState": "Disabled"
+    }
+  }
+}
+

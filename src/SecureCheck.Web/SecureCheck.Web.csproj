@@ -27,5 +27,11 @@
     <InternalsVisibleTo Include="SecureCheck.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Copy the PowerShell audit script and demo JSON fixtures next to the web app DLL. -->
+    <None Update="Scripts\Invoke-SecureCheckAudit.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="Scripts\Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
 

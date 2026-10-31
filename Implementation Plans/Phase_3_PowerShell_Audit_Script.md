@@ -4,13 +4,14 @@
 
 ## Phase 3 — PowerShell audit script
 
-**Goal:** One script that, when run on a target PC, collects all security facts and returns **one JSON string**. It does **not** decide Pass/Fail — the C# app does that, so admins can change thresholds.
+**Goal:** One read-only script that, when run on a target PC (or the local laptop), collects all security facts and returns **one JSON string**. It does **not** decide Pass/Fail and never modifies any computer settings — the C# app decides Pass/Fail, so admins can change thresholds.
 
 **File:** `src/SecureCheck.Web/Scripts/Invoke-SecureCheckAudit.ps1` (set to "Copy to output directory: Copy if newer").
 
 **Rules**
-- Must work in **Windows PowerShell 5.1**: no `??`, no ternary `? :`, no `ForEach-Object -Parallel`, no PS7-only cmdlets.
-- Runs as admin on the target. Each section is wrapped in its own `try/catch`, so one failing section does not stop the others. On error, set that section's `error` to a short message and continue.
+- Must work in **Windows PowerShell 5.1** and **PowerShell 7**: no `ForEach-Object -Parallel`, no PS7-only cmdlets.
+- Strictly read-only (never change any Windows settings). Each section is wrapped in its own `try/catch`, so one failing section does not stop the others. On error, set that section's `error` to a short message and continue.
+- Include safe non-admin fallbacks so the script works on the local laptop even when not elevated as Administrator.
 - Output: `ConvertTo-Json -Depth 6 -Compress`, written as the **only** output. Dates as ISO strings (`.ToString("o")`).
 - Use SIDs instead of names where possible (works on non-English Windows).
 
@@ -47,23 +48,21 @@ Use `null` for a value that could not be read. Sub-parts inside `accounts` and `
 - **updates:** `Get-HotFix | Where-Object InstalledOn | Sort-Object InstalledOn -Descending | Select-Object -First 1`. If no hotfix has a date, fallback: `(New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher()` → `QueryHistory(0, 1)` and use its `Date`; set `"source": "WindowsUpdateHistory"`.
 - **antivirus:** `Get-MpComputerStatus` → `AntivirusEnabled`, `RealTimeProtectionEnabled`, `AntivirusSignatureAge`, `AntivirusSignatureLastUpdated`. If the cmdlet is missing or fails, set `error` = "Windows Defender status not available (another antivirus may be installed)".
 - **guest:** `Get-LocalUser | Where-Object { $_.SID.Value -like '*-501' }`.
-- **administrators:** group name from SID `S-1-5-32-544` (translate the SID to the local name). Try `Get-LocalGroupMember -SID 'S-1-5-32-544'`; if it throws (it can fail when the group has orphaned SIDs), fallback to ADSI: `[ADSI]"WinNT://$env:COMPUTERNAME/<groupName>,group"` and read `Members()`.
-- **passwordPolicy:** `secedit /export /cfg "$env:TEMP\sc_secpol.inf" /areas SECURITYPOLICY /quiet`, read `MinimumPasswordLength`, `PasswordComplexity`, `LockoutBadCount` from the `[System Access]` section, then delete the temp file in a `finally` block. (These are the effective values, including ones applied by Group Policy.)
+- **administrators:** group name from SID `S-1-5-32-544` (translate the SID to the local name). Try `Get-LocalGroupMember -SID 'S-1-5-32-544'`; if it throws (it can fail when the group has orphaned SIDs or Microsoft accounts), fallback to ADSI: `[ADSI]"WinNT://$env:COMPUTERNAME/<groupName>,group"` and read `Members()`.
+- **passwordPolicy:** Try `secedit /export /cfg "$env:TEMP\sc_secpol.inf" /areas SECURITYPOLICY /quiet`, read `MinimumPasswordLength`, `PasswordComplexity`, `LockoutBadCount` from `[System Access]`, and delete the temp file in `finally`. Fallback if not running as Admin (or if `secedit` fails): parse `net accounts` output for `Minimum password length` and `Lockout threshold` (default `passwordComplexity` to 0 and set `"source": "net accounts"`).
 - **remoteRegistry:** `Get-Service RemoteRegistry` → Status, StartType (as strings). If missing, `exists = false`.
 - **rdpEnabled:** `(Get-ItemProperty 'HKLM:\System\CurrentControlSet\Control\Terminal Server').fDenyTSConnections -eq 0`.
-- **smb1:** `(Get-SmbServerConfiguration).EnableSMB1Protocol` and `(Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol).State` (feature may not exist → `"NotPresent"`).
-- **telnetClient:** `(Get-WindowsOptionalFeature -Online -FeatureName TelnetClient).State` (missing → `"NotPresent"`).
+- **smb1:** Try `(Get-SmbServerConfiguration).EnableSMB1Protocol` (fallback to reading registry `HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters` value `SMB1` — if missing or 0, false). For `featureState`, try `(Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol).State`; if not running as Admin, fallback to checking if `C:\Windows\System32\drivers\srv.sys` exists or default to `"Disabled"` when `serverProtocolEnabled` is false.
+- **telnetClient:** Try `(Get-WindowsOptionalFeature -Online -FeatureName TelnetClient).State`; if not running as Admin, fallback to checking `Test-Path "$env:SystemRoot\System32\telnet.exe"` (true → `"Enabled"`, false → `"Disabled"`).
 
-**Also create** `src/SecureCheck.Web/Scripts/README.md` explaining how to test the script by hand:
+**Also create** `src/SecureCheck.Web/Scripts/README.md` explaining how to test the script by hand locally on your laptop (and optionally over remote PowerShell):
 ```powershell
-$cred = Get-Credential
-$script = Get-Content .\Invoke-SecureCheckAudit.ps1 -Raw
-Invoke-Command -ComputerName 192.168.56.101 -Credential $cred -ScriptBlock ([scriptblock]::Create($script))
+# Run directly on your own laptop (read-only):
+powershell -ExecutionPolicy Bypass -File .\src\SecureCheck.Web\Scripts\Invoke-SecureCheckAudit.ps1
 ```
 
-**Also create** 3 fixture files in `tests/SecureCheck.Tests/Fixtures/`: `secure-pc.json` (everything passes), `weak-pc.json` (many failures: public firewall off, guest enabled, SMB1 on, telnet on, no password rules, 90-day-old update), `partial-error.json` (antivirus section has an error, everything else fine).
+**Also create** 3 fixture files in `tests/SecureCheck.Tests/Fixtures/`: `secure-pc.json` (everything passes), `weak-pc.json` (many failures: public firewall off, guest enabled, SMB1 on, telnet on, no password rules, 90-day-old update), `partial-error.json` (antivirus section has an error, everything else fine). Also copy these 3 fixture JSON files into `src/SecureCheck.Web/Scripts/Fixtures/` (set to Copy if newer) so they can be used for built-in demo endpoints later.
 
 **Done when**
-- [ ] Running the script by hand on both VMs prints one valid JSON object (paste it into a JSON validator).
-- [ ] Turning off the VM's Public firewall and re-running shows `"enabled": false` for Public.
-- [ ] The script finishes in under ~30 seconds on a VM.
+- [ ] Running `Invoke-SecureCheckAudit.ps1` on your laptop prints one valid JSON object with your laptop's real security settings.
+- [ ] The script finishes in under ~15 seconds and does not modify anything on your laptop.
