@@ -1,0 +1,204 @@
+@page
+@model SecureCheck.Web.Pages.Audits.RunModel
+@{
+    ViewData["Title"] = "Run Audit";
+    var selectedSet = Model.SelectedComputerIds.ToHashSet();
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1 sc-heading"><i class="bi bi-play-circle me-2"></i>Run Security Audit</h1>
+        <p class="text-muted small mb-0">
+            Select active Windows computers to audit in the background and evaluate against the enabled security checklist.
+        </p>
+    </div>
+    <a asp-page="/Computers/Index" class="btn btn-outline-secondary">
+        <i class="bi bi-pc-display me-1"></i>Manage Computers
+    </a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-octagon me-1"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="card sc-card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5 col-lg-4">
+                <label for="locationFilter" class="form-label small fw-semibold">Filter by Location</label>
+                <select id="locationFilter" name="Location" class="form-select">
+                    <option value="">All locations</option>
+                    @foreach (var loc in Model.Locations)
+                    {
+                        <option value="@loc" selected="@(Model.Location == loc)">@loc</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4 col-lg-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+                <a asp-page="./Run" class="btn btn-outline-secondary" title="Clear location filter">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Computers.Count == 0)
+{
+    <div class="card sc-card">
+        <div class="card-body p-5 text-center text-muted">
+            <i class="bi bi-pc-display fs-1 d-block mb-2"></i>
+            @if (!string.IsNullOrWhiteSpace(Model.Location))
+            {
+                <p class="mb-3">No active computers found in location <strong>@Model.Location</strong>.</p>
+                <a asp-page="./Run" class="btn btn-sm btn-outline-secondary">Show All Locations</a>
+            }
+            else
+            {
+                <p class="mb-3">No active computers are available to audit.</p>
+                <a asp-page="/Computers/Index" class="btn btn-sm btn-primary">
+                    <i class="bi bi-pc-display me-1"></i>Go to Computers
+                </a>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <form method="post" id="runAuditForm">
+        <input type="hidden" name="Location" value="@Model.Location" />
+
+        <div class="card sc-card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span><i class="bi bi-pc-display-horizontal me-1"></i>Active Computers (@Model.Computers.Count)</span>
+                    <span id="selectedCountBadge" class="badge sc-badge-navy">@selectedSet.Count selected</span>
+                </div>
+                <button type="submit" class="btn btn-primary" data-loading-text="Starting audit...">
+                    <i class="bi bi-play-fill me-1"></i>Start Audit
+                </button>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 140px;">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" id="selectAllComputers" />
+                                        <label class="form-check-label fw-semibold" for="selectAllComputers">Select all</label>
+                                    </div>
+                                </th>
+                                <th>Computer</th>
+                                <th>Host / IP</th>
+                                <th>Location</th>
+                                <th>Mode</th>
+                                <th class="pe-3">Last Audit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.Computers)
+                            {
+                                var mode = PowerShellRunner.DetermineMode(c.HostName);
+                                var isBusy = Model.BusyComputerIds.Contains(c.Id);
+                                var isChecked = selectedSet.Contains(c.Id);
+                                var (_, scoreBadgeClass, scoreTextClass) = Model.DescribeScore(c.LastScore);
+
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input js-computer-checkbox"
+                                                   type="checkbox"
+                                                   name="SelectedComputerIds"
+                                                   id="comp_@c.Id"
+                                                   value="@c.Id"
+                                                   checked="@isChecked"
+                                                   aria-label="Select @c.Name" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <label class="fw-semibold mb-0 d-block" for="comp_@c.Id">@c.Name</label>
+                                        @if (!string.IsNullOrWhiteSpace(c.Description))
+                                        {
+                                            <div class="small text-muted">@c.Description</div>
+                                        }
+                                        @if (isBusy)
+                                        {
+                                            <div class="mt-1">
+                                                <span class="badge risk-medium">
+                                                    <i class="bi bi-hourglass-split me-1"></i>Audit in progress
+                                                </span>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td><code>@c.HostName</code></td>
+                                    <td>@(string.IsNullOrWhiteSpace(c.Location) ? "—" : c.Location)</td>
+                                    <td>
+                                        <span class="badge sc-badge-navy">
+                                            <i class="bi @mode.ToIconClass() me-1"></i>@mode.ToDisplayName()
+                                        </span>
+                                    </td>
+                                    <td class="pe-3">
+                                        @if (c.LastAuditedAt.HasValue)
+                                        {
+                                            <div class="small text-muted">
+                                                @c.LastAuditedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                            </div>
+                                            <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                                                @if (c.LastScore.HasValue)
+                                                {
+                                                    <span class="badge @scoreBadgeClass" title="Score @c.LastScore / 100">
+                                                        Score: @c.LastScore
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge status-error">Score: N/A</span>
+                                                }
+
+                                                @if (c.LastRiskLevel.HasValue)
+                                                {
+                                                    <span class="badge @c.LastRiskLevel.Value.ToBadgeClass()">
+                                                        @c.LastRiskLevel.Value
+                                                    </span>
+                                                }
+                                                else if (c.LastScore.HasValue)
+                                                {
+                                                    <span class="badge risk-low">Secure</span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Not audited</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-footer bg-white d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <span class="small text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Computers already running an audit will be skipped automatically.
+                </span>
+                <button type="submit" class="btn btn-primary" data-loading-text="Starting audit...">
+                    <i class="bi bi-play-fill me-1"></i>Start Audit
+                </button>
+            </div>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <script src="~/js/audit-run.js" asp-append-version="true"></script>
+}
+

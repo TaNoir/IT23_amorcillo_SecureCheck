@@ -24,7 +24,10 @@ builder.Services.AddSecureCheckDataProtection(new DirectoryInfo(keysDirectory));
 builder.Services.AddSingleton<CredentialProtector>();
 builder.Services.AddSingleton<PowerShellRunner>();
 builder.Services.AddSingleton<AuditEvaluator>();
+builder.Services.AddSingleton<AuditQueue>();
+builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<ActivityLogService>();
+builder.Services.AddHostedService<AuditWorker>();
 
 // ---------- Identity (login + roles) ----------
 builder.Services
@@ -57,6 +60,8 @@ builder.Services.AddRazorPages(options =>
 {
     // Everything under /Admin is Administrator-only.
     options.Conventions.AuthorizeFolder("/Admin", AppPolicies.Manage);
+    // Starting audits is restricted to Administrator and Auditor (Viewer is read-only).
+    options.Conventions.AuthorizePage("/Audits/Run", AppPolicies.Audit);
 });
 
 var app = builder.Build();

@@ -1,3 +1,5 @@
+using SecureCheck.Web.Services;
+
 namespace SecureCheck.Web.Models;
 
 public enum CheckCategory
@@ -66,6 +68,49 @@ public static class EnumDisplayExtensions
         CheckStatus.Error => "status-error",
         CheckStatus.Skipped => "status-error",
         _ => "status-error"
+    };
+
+    public static string ToDisplayName(this AuditRunStatus status) => status switch
+    {
+        AuditRunStatus.CompletedWithErrors => "Completed with Errors",
+        _ => status.ToString()
+    };
+
+    public static string ToBadgeClass(this AuditRunStatus status) => status switch
+    {
+        AuditRunStatus.Queued => "status-error",
+        AuditRunStatus.Running => "sc-badge-navy",
+        AuditRunStatus.Completed => "risk-low",
+        AuditRunStatus.CompletedWithErrors => "risk-high",
+        _ => "status-error"
+    };
+
+    public static string ToDisplayName(this ComputerAuditStatus status) => status.ToString();
+
+    public static string ToBadgeClass(this ComputerAuditStatus status) => status switch
+    {
+        ComputerAuditStatus.Pending => "status-error",
+        ComputerAuditStatus.Running => "sc-badge-navy",
+        ComputerAuditStatus.Completed => "risk-low",
+        ComputerAuditStatus.Unreachable => "status-error",
+        ComputerAuditStatus.Failed => "risk-critical",
+        _ => "status-error"
+    };
+
+    public static string ToDisplayName(this ExecutionMode mode) => mode switch
+    {
+        ExecutionMode.Local => "Local Machine",
+        ExecutionMode.Demo => "Simulated Demo",
+        ExecutionMode.Remote => "Remote WinRM",
+        _ => mode.ToString()
+    };
+
+    public static string ToIconClass(this ExecutionMode mode) => mode switch
+    {
+        ExecutionMode.Local => "bi-laptop",
+        ExecutionMode.Demo => "bi-cpu",
+        ExecutionMode.Remote => "bi-hdd-network",
+        _ => "bi-pc-display"
     };
 }
 

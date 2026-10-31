@@ -1,0 +1,226 @@
+@page "{runId:int}"
+@model SecureCheck.Web.Pages.Audits.ProgressModel
+@{
+    var snap = Model.Snapshot;
+    ViewData["Title"] = $"Audit Run #{snap.RunId} Progress";
+
+    var progressBarColorClass = !snap.IsFinished
+        ? "progress-bar-striped progress-bar-animated"
+        : snap.Status == nameof(AuditRunStatus.CompletedWithErrors)
+            ? "bg-warning text-dark"
+            : "bg-success";
+}
+
+<div id="auditProgressRoot"
+     data-status-url="@Url.Page("/Audits/Progress", "Status", new { runId = snap.RunId })"
+     data-is-finished="@(snap.IsFinished ? "true" : "false")">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <h1 class="h3 mb-0 sc-heading">
+                    <i class="bi bi-activity me-2"></i>Audit Run #@snap.RunId
+                </h1>
+                <span id="runStatusBadge" class="badge @snap.StatusBadgeClass fs-6">
+                    @if (!snap.IsFinished)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    }
+                    <span>@snap.StatusDisplay</span>
+                </span>
+            </div>
+            <p class="text-muted small mb-0">
+                Started by <strong>@snap.StartedByName</strong> on @snap.CreatedAtLocal
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a id="viewResultsBtn"
+               href="~/Audits/Details/@snap.RunId"
+               class="btn btn-primary @(snap.IsFinished ? "" : "d-none")">
+                <i class="bi bi-clipboard2-data me-1"></i>View Results
+            </a>
+            @if (Model.CanAudit)
+            {
+                <a asp-page="./Run" class="btn btn-outline-primary">
+                    <i class="bi bi-play-circle me-1"></i>Run Another Audit
+                </a>
+            }
+            <a asp-page="/Computers/Index" class="btn btn-outline-secondary">
+                <i class="bi bi-pc-display me-1"></i>Computers
+            </a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SkippedMessage))
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="bi bi-info-circle me-1"></i>@Model.SkippedMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card sc-card mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+                <div class="fw-semibold">
+                    Progress:
+                    <span id="runProgressCount">@snap.CompletedComputers / @snap.TotalComputers</span>
+                    computers completed
+                </div>
+                <div class="d-flex align-items-center gap-3 small">
+                    <span id="pollingIndicator" class="text-muted @(snap.IsFinished ? "d-none" : "")">
+                        <span class="spinner-grow spinner-grow-sm text-primary me-1" role="status" aria-hidden="true"></span>
+                        Live updating every 2s
+                    </span>
+                    <span id="runProgressPercent" class="fw-bold sc-heading">@snap.PercentComplete%</span>
+                </div>
+            </div>
+
+            <div class="progress mb-3" style="height: 22px;">
+                <div id="runProgressBar"
+                     class="progress-bar @progressBarColorClass"
+                     role="progressbar"
+                     style="width: @(snap.PercentComplete)%;"
+                     aria-valuenow="@snap.PercentComplete"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                    @(snap.PercentComplete)%
+                </div>
+            </div>
+
+            <div class="row g-2 small text-muted">
+                <div class="col-sm-6">
+                    <i class="bi bi-clock me-1"></i>Started:
+                    <span id="runStartedAt" class="fw-semibold text-dark">@(snap.StartedAtLocal ?? "Queued...")</span>
+                </div>
+                <div class="col-sm-6 text-sm-end">
+                    <i class="bi bi-check2-circle me-1"></i>Finished:
+                    <span id="runFinishedAt" class="fw-semibold text-dark">@(snap.FinishedAtLocal ?? "In progress...")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card sc-card">
+        <div class="card-header py-3">
+            <i class="bi bi-pc-display-horizontal me-1"></i>Target Computers (@snap.Computers.Count)
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Computer</th>
+                            <th>Host / IP</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Overall Risk</th>
+                            <th>Checks</th>
+                            <th class="pe-3">Details / Error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="progressTableBody">
+                        @foreach (var item in snap.Computers)
+                        {
+                            <tr data-computer-audit-id="@item.ComputerAuditId">
+                                <td class="ps-3">
+                                    <div class="fw-semibold">@item.ComputerName</div>
+                                    <div class="small text-muted">
+                                        @if (!string.IsNullOrWhiteSpace(item.Location))
+                                        {
+                                            <span>@item.Location &bull; </span>
+                                        }
+                                        <span><i class="bi @item.ExecutionModeIcon me-1"></i>@item.ExecutionModeDisplay</span>
+                                    </div>
+                                </td>
+                                <td><code>@item.HostName</code></td>
+                                <td data-role="status">
+                                    <span class="badge @item.StatusBadgeClass">
+                                        @if (item.IsRunning)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        }
+                                        <span>@item.StatusDisplay</span>
+                                    </span>
+                                </td>
+                                <td data-role="score">
+                                    @if (item.HasCounts)
+                                    {
+                                        if (item.Score.HasValue)
+                                        {
+                                            <span class="fw-bold @item.ScoreTextClass me-1">@item.Score.Value</span>
+                                            <span class="badge @item.ScoreBadgeClass">@item.ScoreLabel</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge status-error">N/A</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td data-role="risk">
+                                    @if (!string.IsNullOrEmpty(item.OverallRiskBadgeClass))
+                                    {
+                                        <span class="badge @item.OverallRiskBadgeClass">@item.OverallRiskDisplay</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td data-role="counts">
+                                    @if (item.HasCounts)
+                                    {
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <span class="badge risk-low">@item.PassedCount Pass</span>
+                                            <span class="badge risk-critical">@item.FailedCount Fail</span>
+                                            @if (item.ErrorCount > 0)
+                                            {
+                                                <span class="badge status-error">@item.ErrorCount Error</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="small pe-3" data-role="details">
+                                    @if (!string.IsNullOrWhiteSpace(item.ErrorMessage))
+                                    {
+                                        <span class="text-sc-red">@item.ErrorMessage</span>
+                                    }
+                                    else if (item.HasCounts && !string.IsNullOrWhiteSpace(item.OsCaption))
+                                    {
+                                        <span class="text-muted">@item.OsCaption</span>
+                                    }
+                                    else if (item.IsRunning)
+                                    {
+                                        <span class="text-muted">Collecting security settings...</span>
+                                    }
+                                    else if (item.Status == nameof(ComputerAuditStatus.Pending))
+                                    {
+                                        <span class="text-muted">Waiting in queue...</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/audit-progress.js" asp-append-version="true"></script>
+}
+
