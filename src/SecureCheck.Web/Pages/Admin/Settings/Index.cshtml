@@ -1,0 +1,138 @@
+@page
+@model SecureCheck.Web.Pages.Admin.Settings.IndexModel
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="mb-4">
+    <h1 class="h3 mb-1 sc-heading"><i class="bi bi-sliders me-2"></i>Application Settings</h1>
+    <p class="text-muted small mb-0">Configure the default remote PowerShell audit credential, concurrency/timeout limits, and security score bands.</p>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post" autocomplete="off">
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+            <!-- Default Audit Credential -->
+            <div class="card sc-card mb-4">
+                <div class="card-header py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <span><i class="bi bi-key me-1"></i>Default Audit Credential</span>
+                    @if (Model.HasStoredDefaultPassword)
+                    {
+                        <span class="badge risk-low"><i class="bi bi-lock-fill me-1"></i>Encrypted password saved</span>
+                    }
+                    else
+                    {
+                        <span class="badge status-error">Not configured</span>
+                    }
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Used for any computer that does not specify its own custom credential.
+                        The password field is write-only and encrypted with ASP.NET Core Data Protection.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.DefaultCredentialUserName" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.DefaultCredentialUserName" class="form-control" autocomplete="off"
+                                   placeholder="e.g. scaudit or DOMAIN\scaudit" />
+                            <span asp-validation-for="Input.DefaultCredentialUserName" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.DefaultCredentialPassword" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.DefaultCredentialPassword" type="password" value="" class="form-control"
+                                   autocomplete="new-password"
+                                   placeholder="@(Model.HasStoredDefaultPassword ? "Leave blank to keep current" : "Enter password")" />
+                            <span asp-validation-for="Input.DefaultCredentialPassword" class="text-danger small"></span>
+                        </div>
+                        @if (Model.HasStoredDefaultPassword)
+                        {
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input asp-for="Input.ClearDefaultCredential" class="form-check-input" />
+                                    <label asp-for="Input.ClearDefaultCredential" class="form-check-label small"></label>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Execution Limits -->
+            <div class="card sc-card mb-4">
+                <div class="card-header py-3">
+                    <i class="bi bi-cpu me-1"></i>Audit Execution
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.MaxParallelAudits" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.MaxParallelAudits" type="number" min="1" max="20" class="form-control" />
+                            <div class="form-text">How many computers may be audited at the same time (default: 5).</div>
+                            <span asp-validation-for="Input.MaxParallelAudits" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.AuditTimeoutSeconds" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.AuditTimeoutSeconds" type="number" min="30" max="600" class="form-control" />
+                            <div class="form-text">Maximum time allowed per computer before timing out (default: 180s).</div>
+                            <span asp-validation-for="Input.AuditTimeoutSeconds" class="text-danger small"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Score Label Thresholds -->
+            <div class="card sc-card mb-4">
+                <div class="card-header py-3">
+                    <i class="bi bi-bar-chart-steps me-1"></i>Score Label Thresholds
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Minimum score (0–100) for each rating band. Scores below the <strong>Poor</strong> minimum are labeled <strong>Critical</strong>.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="Input.ScoreGoodMin" class="form-label fw-semibold">
+                                <span class="badge risk-low me-1">Good</span>Minimum
+                            </label>
+                            <input asp-for="Input.ScoreGoodMin" type="number" min="1" max="100" class="form-control" />
+                            <span asp-validation-for="Input.ScoreGoodMin" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.ScoreFairMin" class="form-label fw-semibold">
+                                <span class="badge risk-medium me-1">Fair</span>Minimum
+                            </label>
+                            <input asp-for="Input.ScoreFairMin" type="number" min="1" max="100" class="form-control" />
+                            <span asp-validation-for="Input.ScoreFairMin" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.ScorePoorMin" class="form-label fw-semibold">
+                                <span class="badge risk-high me-1">Poor</span>Minimum
+                            </label>
+                            <input asp-for="Input.ScorePoorMin" type="number" min="1" max="100" class="form-control" />
+                            <div class="form-text">Below this value = <span class="badge risk-critical">Critical</span></div>
+                            <span asp-validation-for="Input.ScorePoorMin" class="text-danger small"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-lg me-1"></i>Save Settings
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

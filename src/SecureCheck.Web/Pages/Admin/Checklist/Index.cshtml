@@ -1,0 +1,125 @@
+@page
+@model SecureCheck.Web.Pages.Admin.Checklist.IndexModel
+@{
+    ViewData["Title"] = "Security Checklist";
+}
+
+<form method="post">
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+        <div>
+            <h1 class="h3 mb-1 sc-heading"><i class="bi bi-list-check me-2"></i>Security Checklist</h1>
+            <p class="text-muted small mb-0">
+                Configure risk levels, thresholds, fix guidance, and enabled status for the 16 security checks.
+                Historical audit results keep snapshots and are unaffected by edits here.
+            </p>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Save Checklist
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-1"></i>@Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div asp-validation-summary="All" class="text-danger small mb-3"></div>
+
+    @{
+        CheckCategory? currentCategory = null;
+    }
+
+    @for (var i = 0; i < Model.Items.Count; i++)
+    {
+        var isNewGroup = currentCategory != Model.Items[i].Category;
+        if (isNewGroup)
+        {
+            currentCategory = Model.Items[i].Category;
+            <div class="card sc-card mb-4">
+                <div class="card-header py-3">
+                    <i class="bi bi-shield-check me-1"></i>@currentCategory.Value.ToDisplayName()
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3" style="width: 120px;">Code</th>
+                                    <th style="width: 22%;">Check</th>
+                                    <th style="width: 140px;">Risk Level</th>
+                                    <th style="width: 170px;">Threshold</th>
+                                    <th>Remediation (How to Fix)</th>
+                                    <th class="text-center pe-3" style="width: 95px;">Enabled</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var j = i; j < Model.Items.Count && Model.Items[j].Category == currentCategory; j++)
+                                {
+                                    i = j;
+                                    <tr>
+                                        <td class="ps-3">
+                                            <input type="hidden" asp-for="Items[j].Id" />
+                                            <code>@Model.Items[j].Code</code>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold">@Model.Items[j].Name</div>
+                                            @if (!string.IsNullOrWhiteSpace(Model.Items[j].Description))
+                                            {
+                                                <div class="small text-muted">Passes when: @Model.Items[j].Description</div>
+                                            }
+                                        </td>
+                                        <td>
+                                            <select asp-for="Items[j].RiskLevel"
+                                                    asp-items="Html.GetEnumSelectList<RiskLevel>()"
+                                                    class="form-select form-select-sm">
+                                            </select>
+                                            <span asp-validation-for="Items[j].RiskLevel" class="text-danger small"></span>
+                                        </td>
+                                        <td>
+                                            @if (Model.Items[j].ThresholdLabel is not null)
+                                            {
+                                                <input asp-for="Items[j].Threshold" type="number" min="1" max="3650"
+                                                       class="form-control form-control-sm" />
+                                                <div class="form-text small mb-0">@Model.Items[j].ThresholdLabel</div>
+                                                <span asp-validation-for="Items[j].Threshold" class="text-danger small"></span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">&mdash;</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <textarea asp-for="Items[j].Remediation" rows="2"
+                                                      class="form-control form-control-sm"></textarea>
+                                            <span asp-validation-for="Items[j].Remediation" class="text-danger small"></span>
+                                        </td>
+                                        <td class="text-center pe-3">
+                                            <div class="form-check form-switch d-inline-block mb-0">
+                                                <input asp-for="Items[j].IsEnabled" class="form-check-input"
+                                                       aria-label="Enable @Model.Items[j].Code" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+    <div class="d-flex justify-content-end mb-3">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Save Checklist
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+

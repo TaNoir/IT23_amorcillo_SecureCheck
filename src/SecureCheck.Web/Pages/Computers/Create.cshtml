@@ -1,0 +1,85 @@
+@page
+@model SecureCheck.Web.Pages.Computers.CreateModel
+@{
+    ViewData["Title"] = "Add Computer";
+}
+
+<div class="mb-4">
+    <a asp-page="./Index" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Back to Computers</a>
+    <h1 class="h3 mt-1 mb-0 sc-heading"><i class="bi bi-pc-display me-2"></i>Add Computer</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card sc-card">
+            <div class="card-body p-4">
+                <form method="post" autocomplete="off">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.Name" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.Name" class="form-control" placeholder="e.g. SC-LAB-01" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.HostName" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.HostName" class="form-control" placeholder="e.g. 192.168.56.101" />
+                            <span asp-validation-for="Input.HostName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.Location" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.Location" class="form-control" placeholder="e.g. Lab 1" />
+                            <span asp-validation-for="Input.Location" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label fw-semibold"></label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="2"
+                                      placeholder="Optional notes (room, role, hardware)..."></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <h2 class="h6 sc-heading mb-1"><i class="bi bi-key me-1"></i>Audit Credential (Optional)</h2>
+                    <p class="text-muted small mb-3">
+                        Leave both fields blank so this computer <strong>uses the default credential</strong> from Admin &rarr; Settings.
+                        Passwords are encrypted at rest with ASP.NET Core Data Protection.
+                    </p>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.CredentialUserName" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.CredentialUserName" class="form-control" autocomplete="off"
+                                   placeholder="e.g. SC-LAB-01\scaudit" />
+                            <span asp-validation-for="Input.CredentialUserName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.CredentialPassword" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.CredentialPassword" type="password" value="" class="form-control"
+                                   autocomplete="new-password" placeholder="Leave blank for default credential" />
+                            <span asp-validation-for="Input.CredentialPassword" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Computer
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+

@@ -1,0 +1,119 @@
+@page "{id:int}"
+@model SecureCheck.Web.Pages.Computers.EditModel
+@{
+    ViewData["Title"] = "Edit Computer";
+}
+
+<div class="mb-4">
+    <a asp-page="./Index" class="text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>Back to Computers</a>
+    <h1 class="h3 mt-1 mb-0 sc-heading"><i class="bi bi-pencil-square me-2"></i>Edit Computer</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card sc-card">
+            <div class="card-body p-4">
+                <form method="post" autocomplete="off">
+                    <input type="hidden" asp-for="Input.Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.Name" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.HostName" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.HostName" class="form-control" />
+                            <span asp-validation-for="Input.HostName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.Location" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.Location" class="form-control" placeholder="e.g. Lab 1" />
+                            <span asp-validation-for="Input.Location" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input asp-for="Input.IsActive" class="form-check-input" />
+                                <label asp-for="Input.IsActive" class="form-check-label fw-semibold">Active (eligible for audits)</label>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label fw-semibold"></label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="2"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-between mb-1 gap-2">
+                        <h2 class="h6 sc-heading mb-0"><i class="bi bi-key me-1"></i>Audit Credential (Optional)</h2>
+                        @if (Model.HasStoredCredential)
+                        {
+                            <span class="badge risk-low"><i class="bi bi-lock-fill me-1"></i>Custom credential saved</span>
+                        }
+                        else
+                        {
+                            <span class="badge status-error">Uses default credential</span>
+                        }
+                    </div>
+                    <p class="text-muted small mb-3">
+                        @if (Model.HasStoredCredential)
+                        {
+                            <span>Leave the password field blank to keep the current encrypted password.</span>
+                        }
+                        else
+                        {
+                            <span>This computer currently <strong>uses the default credential</strong>. Enter a username and password below to override it.</span>
+                        }
+                    </p>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.CredentialUserName" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.CredentialUserName" class="form-control" autocomplete="off"
+                                   placeholder="e.g. SC-LAB-01\scaudit" />
+                            <span asp-validation-for="Input.CredentialUserName" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Input.CredentialPassword" class="form-label fw-semibold"></label>
+                            <input asp-for="Input.CredentialPassword" type="password" value="" class="form-control"
+                                   autocomplete="new-password"
+                                   placeholder="@(Model.HasStoredCredential ? "Leave blank to keep current" : "Enter password")" />
+                            <span asp-validation-for="Input.CredentialPassword" class="text-danger small"></span>
+                        </div>
+
+                        @if (Model.HasStoredCredential)
+                        {
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input asp-for="Input.ClearCredential" class="form-check-input" />
+                                    <label asp-for="Input.ClearCredential" class="form-check-label small"></label>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Save Changes
+                        </button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+

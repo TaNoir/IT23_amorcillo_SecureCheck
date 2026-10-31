@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SecureCheck.Web.Data;
@@ -10,6 +11,20 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+
+// ---------- Data Protection (persisted keys for encrypted audit credentials) ----------
+var keysDirectory = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "SecureCheck",
+    "keys");
+Directory.CreateDirectory(keysDirectory);
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("SecureCheck")
+    .PersistKeysToFileSystem(new DirectoryInfo(keysDirectory));
+
+builder.Services.AddSingleton<CredentialProtector>();
+builder.Services.AddScoped<ActivityLogService>();
 
 // ---------- Identity (login + roles) ----------
 builder.Services
@@ -63,7 +78,7 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
-// Create/upgrade the database, roles and first admin.
+// Create/upgrade the database, roles, first admin, checklist and default settings.
 await DbSeeder.SeedAsync(app.Services);
 
 app.Run();
