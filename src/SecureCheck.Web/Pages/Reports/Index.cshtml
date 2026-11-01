@@ -1,0 +1,7 @@
+@page
+@model SecureCheck.Web.Pages.Reports.IndexModel
+@{ ViewData["Title"] = "Reports"; }
+<div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h3 mb-1"><i class="bi bi-file-earmark-text me-2"></i>Reports</h1><p class="text-muted mb-0">Download audit evidence in PDF or CSV format.</p></div></div>
+<div class="card sc-card"><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th class="ps-3">Run</th><th>Created</th><th>Started by</th><th>Status</th><th>Computers</th><th class="text-end pe-3">Exports</th></tr></thead><tbody>
+@foreach (var run in Model.Runs) { <tr><td class="ps-3">#@run.Id</td><td>@AuditAnalyticsService.FormatLocalDateTime(run.CreatedAt)</td><td>@run.StartedByName</td><td>@run.Status</td><td>@run.CompletedComputers / @run.TotalComputers</td><td class="text-end pe-3"><a class="btn btn-sm btn-primary" asp-page-handler="RunPdf" asp-route-runId="@run.Id"><i class="bi bi-file-pdf me-1"></i>Download PDF</a> <a class="btn btn-sm btn-outline-primary" asp-page-handler="RunCsv" asp-route-runId="@run.Id"><i class="bi bi-filetype-csv me-1"></i>Download CSV</a></td></tr> }
+</tbody></table></div></div></div>

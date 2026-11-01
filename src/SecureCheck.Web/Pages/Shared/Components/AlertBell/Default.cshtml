@@ -1,0 +1,22 @@
+@model int
+@{
+    var currentPath = ViewContext.HttpContext.Request.Path.Value ?? "/";
+    var isAlertsActive = currentPath.StartsWith("/Alerts", StringComparison.OrdinalIgnoreCase);
+    var titleText = Model > 0
+        ? $"{Model} open {(Model == 1 ? "alert" : "alerts")}"
+        : "No open alerts";
+}
+<li class="nav-item me-lg-1">
+    <a class="nav-link d-inline-flex align-items-center gap-1 @(isAlertsActive ? "active" : "")"
+       href="~/Alerts"
+       title="@titleText"
+       aria-label="@titleText">
+        <i class="bi @(Model > 0 ? "bi-bell-fill" : "bi-bell")"></i>
+        <span class="d-lg-none">Open Alerts</span>
+        @if (Model > 0)
+        {
+            <span class="badge rounded-pill risk-critical sc-bell-badge">@Model</span>
+        }
+    </a>
+</li>
+

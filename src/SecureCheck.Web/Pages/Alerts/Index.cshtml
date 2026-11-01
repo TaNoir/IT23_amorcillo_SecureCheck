@@ -1,0 +1,195 @@
+@page
+@model SecureCheck.Web.Pages.Alerts.IndexModel
+@{
+    ViewData["Title"] = "Alerts";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <h1 class="h3 mb-1 sc-heading"><i class="bi bi-exclamation-triangle me-2"></i>Security Alerts</h1>
+        <p class="text-muted small mb-0">
+            High and Critical risk alerts raised when completed audits detect serious security findings.
+        </p>
+    </div>
+
+    @if (Model.CanAudit && !Model.IsAcknowledgedTab && Model.OpenCount > 0)
+    {
+        <form method="post" asp-page-handler="AcknowledgeAll">
+            <button type="submit"
+                    class="btn btn-outline-primary"
+                    data-confirm="Acknowledge all @Model.OpenCount open @(Model.OpenCount == 1 ? "alert" : "alerts")?">
+                <i class="bi bi-check2-all me-1"></i>Acknowledge All Open (@Model.OpenCount)
+            </button>
+        </form>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Open / Acknowledged Tabs -->
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a class="nav-link d-inline-flex align-items-center gap-2 @(!Model.IsAcknowledgedTab ? "active fw-semibold" : "")"
+           asp-page="./Index"
+           asp-route-Tab="open">
+            <i class="bi bi-bell"></i>
+            <span>Open</span>
+            <span class="badge @(Model.OpenCount > 0 ? "risk-critical" : "status-error")">@Model.OpenCount</span>
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link d-inline-flex align-items-center gap-2 @(Model.IsAcknowledgedTab ? "active fw-semibold" : "")"
+           asp-page="./Index"
+           asp-route-Tab="acknowledged">
+            <i class="bi bi-check2-circle"></i>
+            <span>Acknowledged</span>
+            <span class="badge sc-badge-navy">@Model.AcknowledgedCount</span>
+        </a>
+    </li>
+</ul>
+
+<div class="card sc-card">
+    <div class="card-body p-0">
+        @if (Model.Alerts.Count == 0)
+        {
+            <div class="p-5 text-center text-muted">
+                @if (!Model.IsAcknowledgedTab)
+                {
+                    <i class="bi bi-shield-fill-check fs-1 text-sc-green d-block mb-2"></i>
+                    <p class="mb-0">No open alerts. All High and Critical findings have been acknowledged.</p>
+                }
+                else
+                {
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    <p class="mb-0">No acknowledged alerts yet.</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 115px;">Severity</th>
+                            <th>Computer</th>
+                            <th>Message</th>
+                            <th>Raised At</th>
+                            @if (Model.IsAcknowledgedTab)
+                            {
+                                <th>Acknowledged By</th>
+                            }
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var alert in Model.Alerts)
+                        {
+                            var computerName = alert.Computer?.Name ?? $"Computer #{alert.ComputerId}";
+                            <tr>
+                                <td class="ps-3">
+                                    <span class="badge @alert.Severity.ToBadgeClass()">@alert.Severity</span>
+                                </td>
+                                <td>
+                                    <a asp-page="/Computers/History"
+                                       asp-route-id="@alert.ComputerId"
+                                       class="fw-semibold text-decoration-none">
+                                        @computerName
+                                    </a>
+                                    @if (!string.IsNullOrWhiteSpace(alert.Computer?.Location))
+                                    {
+                                        <div class="small text-muted">@alert.Computer.Location</div>
+                                    }
+                                </td>
+                                <td>@alert.Message</td>
+                                <td class="small text-muted">
+                                    @AuditAnalyticsService.FormatLocalDateTime(alert.CreatedAt, "yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                @if (Model.IsAcknowledgedTab)
+                                {
+                                    <td class="small">
+                                        <div class="fw-semibold">@(alert.AcknowledgedByName ?? "—")</div>
+                                        @if (alert.AcknowledgedAt.HasValue)
+                                        {
+                                            <div class="text-muted">
+                                                @AuditAnalyticsService.FormatLocalDateTime(alert.AcknowledgedAt.Value, "yyyy-MM-dd HH:mm:ss")
+                                            </div>
+                                        }
+                                    </td>
+                                }
+                                <td class="text-end pe-3">
+                                    <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                        <a asp-page="/Audits/Result"
+                                           asp-route-computerAuditId="@alert.ComputerAuditId"
+                                           class="btn btn-sm btn-outline-primary">
+                                            View Result
+                                        </a>
+                                        @if (!alert.IsAcknowledged && Model.CanAudit)
+                                        {
+                                            <form method="post" asp-page-handler="Acknowledge" class="d-inline">
+                                                <input type="hidden" name="id" value="@alert.Id" />
+                                                <input type="hidden" name="tab" value="@Model.Tab" />
+                                                <button type="submit" class="btn btn-sm btn-primary">
+                                                    <i class="bi bi-check2 me-1"></i>Acknowledge
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <div class="card-footer bg-white d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                    <span class="small text-muted">Page @Model.PageNumber of @Model.TotalPages</span>
+                    <nav aria-label="Alerts pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.PageNumber <= 1 ? "disabled" : "")">
+                                <a class="page-link"
+                                   asp-page="./Index"
+                                   asp-route-Tab="@Model.Tab"
+                                   asp-route-PageNumber="@(Model.PageNumber - 1)">
+                                    Previous
+                                </a>
+                            </li>
+                            @{
+                                var startPage = Math.Max(1, Model.PageNumber - 2);
+                                var endPage = Math.Min(Model.TotalPages, Model.PageNumber + 2);
+                            }
+                            @for (var p = startPage; p <= endPage; p++)
+                            {
+                                <li class="page-item @(p == Model.PageNumber ? "active" : "")">
+                                    <a class="page-link"
+                                       asp-page="./Index"
+                                       asp-route-Tab="@Model.Tab"
+                                       asp-route-PageNumber="@p">
+                                        @p
+                                    </a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.PageNumber >= Model.TotalPages ? "disabled" : "")">
+                                <a class="page-link"
+                                   asp-page="./Index"
+                                   asp-route-Tab="@Model.Tab"
+                                   asp-route-PageNumber="@(Model.PageNumber + 1)">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        }
+    </div>
+</div>
+

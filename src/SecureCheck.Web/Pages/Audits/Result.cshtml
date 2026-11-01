@@ -1,0 +1,477 @@
+@page "{computerAuditId:int}"
+@model SecureCheck.Web.Pages.Audits.ResultModel
+@{
+    var ca = Model.Audit;
+    var computerName = ca.Computer?.Name ?? $"Computer #{ca.ComputerId}";
+    var hostName = ca.Computer?.HostName ?? "—";
+    var location = ca.Computer?.Location;
+    var isCompleted = ca.Status == ComputerAuditStatus.Completed;
+    ViewData["Title"] = $"{computerName} — Audit Result";
+}
+
+<!-- Top Navigation Bar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 small">
+            <li class="breadcrumb-item"><a asp-page="/Audits/Index">Audit History</a></li>
+            <li class="breadcrumb-item">
+                <a asp-page="/Audits/Details" asp-route-runId="@ca.AuditRunId">Run #@ca.AuditRunId</a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">@computerName</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <a asp-page="/Reports/Index" asp-page-handler="ComputerPdf" asp-route-computerAuditId="@ca.Id" class="btn btn-primary"><i class="bi bi-file-pdf me-1"></i>Export PDF</a>
+        @if (Model.CanAudit && ca.Computer?.IsActive == true)
+        {
+            <a asp-page="/Audits/Run" asp-route-computerId="@ca.ComputerId" class="btn btn-sm btn-primary">
+                <i class="bi bi-arrow-clockwise me-1"></i>Re-audit Computer
+            </a>
+        }
+        <a asp-page="/Computers/History" asp-route-id="@ca.ComputerId" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-graph-up me-1"></i>Computer History
+        </a>
+        <a asp-page="/Audits/Details" asp-route-runId="@ca.AuditRunId" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Run #@ca.AuditRunId
+        </a>
+    </div>
+</div>
+
+<!-- 1. Computer & Score Hero Header -->
+<div class="card sc-card mb-4">
+    <div class="card-body p-4">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-8">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <h1 class="h3 mb-0 sc-heading">
+                        <i class="bi bi-pc-display me-2"></i>@computerName
+                    </h1>
+                    <span class="badge @ca.Status.ToBadgeClass()">@ca.Status.ToDisplayName()</span>
+                    @if (!string.IsNullOrEmpty(Model.OverallRiskBadgeClass))
+                    {
+                        <span class="badge @Model.OverallRiskBadgeClass fs-6">
+                            @(Model.OverallRiskDisplay == "Secure" ? "Secure" : $"{Model.OverallRiskDisplay} Risk")
+                        </span>
+                    }
+                </div>
+
+                <div class="row row-cols-1 row-cols-sm-2 g-2 small text-muted mt-1">
+                    <div class="col">
+                        <i class="bi bi-hdd-network me-1"></i>Host / IP:
+                        <code class="ms-1">@hostName</code>
+                        <span class="ms-1">(@Model.ExecutionMode.ToDisplayName())</span>
+                    </div>
+                    <div class="col">
+                        <i class="bi bi-geo-alt me-1"></i>Location:
+                        <strong class="text-dark ms-1">@(string.IsNullOrWhiteSpace(location) ? "—" : location)</strong>
+                    </div>
+                    <div class="col">
+                        <i class="bi bi-windows me-1"></i>Operating System:
+                        <strong class="text-dark ms-1">
+                            @if (!string.IsNullOrWhiteSpace(ca.OsCaption))
+                            {
+                                @ca.OsCaption
+                                @if (!string.IsNullOrWhiteSpace(ca.OsVersion))
+                                {
+                                    <span class="text-muted fw-normal">(@ca.OsVersion)</span>
+                                }
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </strong>
+                    </div>
+                    <div class="col">
+                        <i class="bi bi-terminal me-1"></i>PowerShell:
+                        <strong class="text-dark ms-1">@(string.IsNullOrWhiteSpace(ca.PsVersion) ? "—" : ca.PsVersion)</strong>
+                    </div>
+                    <div class="col">
+                        <i class="bi bi-clock me-1"></i>Audited At:
+                        <strong class="text-dark ms-1">
+                            @AuditAnalyticsService.FormatLocalDateTime(Model.DisplayTimestampUtc, "yyyy-MM-dd HH:mm:ss")
+                        </strong>
+                    </div>
+                    @if (isCompleted)
+                    {
+                        <div class="col d-flex flex-wrap align-items-center gap-1">
+                            <span class="badge risk-low">@ca.PassedCount Passed</span>
+                            <span class="badge risk-critical">@ca.FailedCount Failed</span>
+                            @if (ca.ErrorCount > 0)
+                            {
+                                <span class="badge status-error">@ca.ErrorCount Error</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-lg-4 d-flex justify-content-lg-end">
+                <div class="sc-score-hero w-100" style="max-width: 220px;">
+                    <div class="small text-muted fw-semibold text-uppercase mb-1">Security Score</div>
+                    @if (isCompleted && ca.Score.HasValue)
+                    {
+                        <div class="sc-score-hero-value @Model.ScoreTextClass">@ca.Score.Value</div>
+                        <div class="mt-2 d-flex flex-wrap justify-content-center gap-1">
+                            <span class="badge @Model.ScoreBadgeClass">@Model.ScoreLabel</span>
+                            @if (!string.IsNullOrEmpty(Model.OverallRiskBadgeClass))
+                            {
+                                <span class="badge @Model.OverallRiskBadgeClass">@Model.OverallRiskDisplay</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="sc-score-hero-value text-sc-gray">&mdash;</div>
+                        <div class="mt-2">
+                            <span class="badge status-error">@Model.ScoreLabel</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (!isCompleted)
+        {
+            <div class="alert @(ca.Status is ComputerAuditStatus.Pending or ComputerAuditStatus.Running ? "alert-info" : "alert-danger") mt-3 mb-0">
+                @if (ca.Status is ComputerAuditStatus.Pending or ComputerAuditStatus.Running)
+                {
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <span>
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            This computer audit is currently <strong>@ca.Status.ToDisplayName()</strong>.
+                        </span>
+                        <a asp-page="./Progress" asp-route-runId="@ca.AuditRunId" class="btn btn-sm btn-primary">
+                            View Live Progress
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                        <strong>@ca.Status.ToDisplayName():</strong>
+                        @(string.IsNullOrWhiteSpace(ca.ErrorMessage) ? "Security settings could not be collected from this computer." : ca.ErrorMessage)
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (isCompleted)
+{
+    <!-- 2. Failed Checks / "How to Fix" Section (Critical -> Low) -->
+    <div class="card sc-card mb-4">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+            <span>
+                <i class="bi bi-tools me-1"></i>How to Fix Failed Checks
+                <span class="badge @(Model.FailedChecks.Count > 0 ? "risk-critical" : "risk-low") ms-1">
+                    @Model.FailedChecks.Count
+                </span>
+            </span>
+            @if (Model.FailedChecks.Count > 0)
+            {
+                <span class="small text-muted fw-normal">Sorted highest risk first (Critical &rarr; Low)</span>
+            }
+        </div>
+        <div class="card-body">
+            @if (Model.FailedChecks.Count == 0)
+            {
+                <div class="d-flex align-items-center gap-3 text-sc-green py-2">
+                    <i class="bi bi-shield-fill-check fs-2"></i>
+                    <div>
+                        <div class="fw-semibold">All evaluated security checks passed!</div>
+                        <div class="small text-muted">No remediation steps are needed for this computer.</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var fail in Model.FailedChecks)
+                    {
+                        <div class="sc-fix-box">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <span class="badge @fail.RiskLevel.ToBadgeClass()">@fail.RiskLevel</span>
+                                    <span class="fw-semibold sc-heading">@fail.Name</span>
+                                    <code>@fail.Code</code>
+                                </div>
+                                <span class="badge sc-badge-navy">@fail.Category.ToDisplayName()</span>
+                            </div>
+
+                            <div class="small text-muted mb-2">
+                                <span class="me-3">
+                                    Actual: <strong class="text-sc-red">@(fail.ActualValue ?? "—")</strong>
+                                </span>
+                                <span>
+                                    Expected: <strong class="text-sc-green">@(fail.ExpectedValue ?? "—")</strong>
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(fail.Message))
+                                {
+                                    <span class="d-block mt-1">@fail.Message</span>
+                                }
+                            </div>
+
+                            <div class="small">
+                                <strong class="sc-heading"><i class="bi bi-wrench-adjustable me-1"></i>How to fix:</strong>
+                                @RemediationFormatter.ToHtmlString(fail.Remediation)
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- 3. Compare with Previous Completed Audit -->
+    <div class="card sc-card mb-4">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+            <span><i class="bi bi-arrow-left-right me-1"></i>Comparison with Previous Audit</span>
+            @if (Model.Comparison is not null)
+            {
+                <a asp-page="./Result"
+                   asp-route-computerAuditId="@Model.Comparison.PreviousComputerAuditId"
+                   class="small fw-normal text-decoration-none">
+                    Previous audit (@(Model.Comparison.PreviousFinishedAtUtc.HasValue
+                        ? AuditAnalyticsService.FormatLocalDateTime(Model.Comparison.PreviousFinishedAtUtc.Value)
+                        : $"#{Model.Comparison.PreviousComputerAuditId}"))
+                    <i class="bi bi-box-arrow-up-right ms-1"></i>
+                </a>
+            }
+        </div>
+        <div class="card-body">
+            @if (Model.Comparison is null)
+            {
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    No earlier completed audit exists for <strong>@computerName</strong>.
+                    After applying fixes and running another audit, changes will appear here automatically.
+                </p>
+            }
+            else
+            {
+                var cmp = Model.Comparison;
+                <div class="d-flex flex-wrap align-items-center gap-3 pb-3 mb-3 border-bottom">
+                    <div>
+                        <span class="small text-muted me-1">Score Change:</span>
+                        <span class="badge @cmp.ScoreDeltaBadgeClass fs-6">@cmp.ScoreDeltaDisplay</span>
+                    </div>
+                    <div class="small text-muted">
+                        Previous: <strong>@(cmp.PreviousScore?.ToString() ?? "N/A")</strong>
+                        &rarr;
+                        Current: <strong>@(cmp.CurrentScore?.ToString() ?? "N/A")</strong>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <!-- Newly Failing -->
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold text-sc-red">
+                                    <i class="bi bi-arrow-down-circle me-1"></i>Newly failing
+                                </span>
+                                <span class="badge @(cmp.NewlyFailing.Count > 0 ? "risk-critical" : "status-error")">
+                                    @cmp.NewlyFailing.Count
+                                </span>
+                            </div>
+                            @if (cmp.NewlyFailing.Count == 0)
+                            {
+                                <div class="small text-muted">None</div>
+                            }
+                            else
+                            {
+                                <ul class="list-unstyled small mb-0 d-flex flex-column gap-2">
+                                    @foreach (var item in cmp.NewlyFailing)
+                                    {
+                                        <li class="d-flex flex-wrap align-items-center gap-1">
+                                            <span class="badge @item.RiskLevel.ToBadgeClass()">@item.RiskLevel</span>
+                                            <code>@item.Code</code>
+                                            <span>@item.Name</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Fixed Since Last Audit -->
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold text-sc-green">
+                                    <i class="bi bi-check2-circle me-1"></i>Fixed since last audit
+                                </span>
+                                <span class="badge @(cmp.FixedSinceLastAudit.Count > 0 ? "risk-low" : "status-error")">
+                                    @cmp.FixedSinceLastAudit.Count
+                                </span>
+                            </div>
+                            @if (cmp.FixedSinceLastAudit.Count == 0)
+                            {
+                                <div class="small text-muted">None</div>
+                            }
+                            else
+                            {
+                                <ul class="list-unstyled small mb-0 d-flex flex-column gap-2">
+                                    @foreach (var item in cmp.FixedSinceLastAudit)
+                                    {
+                                        <li class="d-flex flex-wrap align-items-center gap-1">
+                                            <span class="badge risk-low">Fixed</span>
+                                            <code>@item.Code</code>
+                                            <span>@item.Name</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Still Failing -->
+                    <div class="col-md-4">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold text-sc-orange">
+                                    <i class="bi bi-exclamation-circle me-1"></i>Still failing
+                                </span>
+                                <span class="badge @(cmp.StillFailing.Count > 0 ? "risk-high" : "status-error")">
+                                    @cmp.StillFailing.Count
+                                </span>
+                            </div>
+                            @if (cmp.StillFailing.Count == 0)
+                            {
+                                <div class="small text-muted">None</div>
+                            }
+                            else
+                            {
+                                <ul class="list-unstyled small mb-0 d-flex flex-column gap-2">
+                                    @foreach (var item in cmp.StillFailing)
+                                    {
+                                        <li class="d-flex flex-wrap align-items-center gap-1">
+                                            <span class="badge @item.RiskLevel.ToBadgeClass()">@item.RiskLevel</span>
+                                            <code>@item.Code</code>
+                                            <span>@item.Name</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- 4. All Check Results Grouped by Category (PROJECT_BRIEF Order) -->
+    <h2 class="h5 sc-heading mb-3"><i class="bi bi-list-check me-2"></i>All Checklist Results by Category</h2>
+
+    @foreach (var group in Model.CategoryGroups)
+    {
+        <div class="card sc-card mb-4">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <span>
+                    <i class="bi @group.IconClass me-1"></i>@group.DisplayName
+                </span>
+                <div class="d-flex flex-wrap gap-1 fw-normal">
+                    <span class="badge risk-low">@group.PassedCount Pass</span>
+                    @if (group.FailedCount > 0)
+                    {
+                        <span class="badge risk-critical">@group.FailedCount Fail</span>
+                    }
+                    @if (group.ErrorCount > 0)
+                    {
+                        <span class="badge status-error">@group.ErrorCount Error</span>
+                    }
+                    @if (group.SkippedCount > 0)
+                    {
+                        <span class="badge status-error">@group.SkippedCount Skipped</span>
+                    }
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 120px;">Status</th>
+                                <th>Check</th>
+                                <th style="width: 110px;">Risk</th>
+                                <th style="width: 165px;">Actual</th>
+                                <th style="width: 165px;">Expected</th>
+                                <th class="pe-3">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in group.Results)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="d-inline-flex align-items-center gap-1">
+                                            <i class="bi @ResultModel.GetCheckStatusIcon(r.Status)"></i>
+                                            <span class="badge @r.Status.ToBadgeClass()">@r.Status</span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">@r.Name</div>
+                                        <code class="small">@r.Code</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge @r.RiskLevel.ToBadgeClass()">@r.RiskLevel</span>
+                                    </td>
+                                    <td class="small @(r.Status == CheckStatus.Fail ? "fw-semibold text-sc-red" : "")">
+                                        @(string.IsNullOrWhiteSpace(r.ActualValue) ? "—" : r.ActualValue)
+                                    </td>
+                                    <td class="small text-muted">
+                                        @(string.IsNullOrWhiteSpace(r.ExpectedValue) ? "—" : r.ExpectedValue)
+                                    </td>
+                                    <td class="small pe-3">
+                                        <div>@(string.IsNullOrWhiteSpace(r.Message) ? "—" : r.Message)</div>
+                                        @if (r.Status == CheckStatus.Fail && !string.IsNullOrWhiteSpace(r.Remediation))
+                                        {
+                                            <div class="text-muted mt-1">
+                                                <strong class="text-dark">Fix:</strong>
+                                                @RemediationFormatter.ToHtmlString(r.Remediation)
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<!-- 5. Collapsible Raw Data Section (Administrator Only / ManagePolicy) -->
+@if (Model.CanManage && !string.IsNullOrWhiteSpace(Model.PrettyRawJson))
+{
+    <div class="card sc-card mb-4">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+            <button class="btn btn-link text-decoration-none p-0 fw-semibold sc-heading d-inline-flex align-items-center gap-2"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#rawJsonCollapse"
+                    aria-expanded="false"
+                    aria-controls="rawJsonCollapse">
+                <i class="bi bi-braces"></i>
+                <span>Raw Data (Administrator Only)</span>
+                <i class="bi bi-chevron-down small"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    data-copy-target="#rawJsonPre">
+                <i class="bi bi-clipboard me-1"></i>Copy JSON
+            </button>
+        </div>
+        <div id="rawJsonCollapse" class="collapse">
+            <div class="card-body">
+                <pre id="rawJsonPre" class="sc-raw-json"><code>@Model.PrettyRawJson</code></pre>
+            </div>
+        </div>
+    </div>
+}
+

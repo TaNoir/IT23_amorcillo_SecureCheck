@@ -2,28 +2,354 @@
 @model IndexModel
 @{
     ViewData["Title"] = "Dashboard";
+    var s = Model.Summary;
 }
 
 <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
-    <h1 class="h3 mb-0 sc-heading"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h1>
-    <span class="text-muted small">@DateTime.Now.ToString("dddd, MMMM d, yyyy")</span>
+    <div>
+        <h1 class="h3 mb-1 sc-heading"><i class="bi bi-speedometer2 me-2"></i>Security Dashboard</h1>
+        <p class="text-muted small mb-0">
+            Overview of managed Windows computers, latest security scores, failed checks, and open risk alerts.
+        </p>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        @if (Model.CanAudit)
+        {
+            <a asp-page="/Audits/Run" class="btn btn-primary">
+                <i class="bi bi-play-circle me-1"></i>Run Audit
+            </a>
+        }
+        <a asp-page="/Audits/Index" class="btn btn-outline-secondary">
+            <i class="bi bi-clock-history me-1"></i>Audit History
+        </a>
+    </div>
 </div>
 
-<div class="card sc-card">
-    <div class="card-body p-4">
-        <h2 class="h4 sc-heading mb-2">Welcome, @Model.FullName</h2>
-        <p class="text-muted mb-3">
-            You are signed in as <span class="badge sc-badge-navy">@Model.RoleNames</span>.
-            The security dashboard (scores, risk levels and alerts) will appear here once audits are running.
-        </p>
+<!-- 1. Summary KPI Cards -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4">
+    <!-- Total Computers -->
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="text-muted small fw-semibold">Total Computers</div>
+                    <div class="h3 fw-bold sc-heading mb-0 mt-1">@s.TotalComputers</div>
+                    <div class="small text-muted mt-1">
+                        @if (s.InactiveComputers > 0)
+                        {
+                            <span>Active (+@s.InactiveComputers inactive)</span>
+                        }
+                        else
+                        {
+                            <span>Active computers</span>
+                        }
+                    </div>
+                </div>
+                <span class="sc-kpi-icon"><i class="bi bi-pc-display"></i></span>
+            </div>
+        </div>
+    </div>
 
-        <div class="d-flex flex-wrap gap-2">
-            <span class="badge risk-low">Low</span>
-            <span class="badge risk-medium">Medium</span>
-            <span class="badge risk-high">High</span>
-            <span class="badge risk-critical">Critical</span>
-            <span class="badge status-error">Error</span>
+    <!-- Average Score -->
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="text-muted small fw-semibold">Average Score</div>
+                    @if (s.AverageScore.HasValue)
+                    {
+                        <div class="d-flex align-items-baseline gap-2 mt-1">
+                            <span class="h3 fw-bold @s.AverageScoreTextClass mb-0">@s.AverageScore.Value</span>
+                            <span class="badge @s.AverageScoreBadgeClass">@s.AverageScoreLabel</span>
+                        </div>
+                        <div class="small text-muted mt-1">Out of 100</div>
+                    }
+                    else
+                    {
+                        <div class="h3 fw-bold text-sc-gray mb-0 mt-1">&mdash;</div>
+                        <div class="small text-muted mt-1">No scored audits yet</div>
+                    }
+                </div>
+                <span class="sc-kpi-icon"><i class="bi bi-shield-check"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- High / Critical Risk -->
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="text-muted small fw-semibold">High / Critical Risk</div>
+                    <div class="h3 fw-bold @(s.HighOrCriticalComputers > 0 ? "text-sc-red" : "text-sc-green") mb-0 mt-1">
+                        @s.HighOrCriticalComputers
+                    </div>
+                    <div class="small text-muted mt-1">
+                        @(s.HighOrCriticalComputers == 1 ? "Computer needs fixes" : "Computers need fixes")
+                    </div>
+                </div>
+                <span class="sc-kpi-icon"><i class="bi bi-shield-exclamation"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Alerts -->
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="text-muted small fw-semibold">Open Alerts</div>
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="h3 fw-bold @(s.OpenAlerts > 0 ? "text-sc-red" : "text-sc-green") mb-0">@s.OpenAlerts</span>
+                        <a asp-page="/Alerts/Index" class="small text-decoration-none">View</a>
+                    </div>
+                    <div class="small text-muted mt-1">Unacknowledged</div>
+                </div>
+                <span class="sc-kpi-icon"><i class="bi bi-bell"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Last Audit Date -->
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body d-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="text-muted small fw-semibold">Last Audit Date</div>
+                    @if (s.LastAuditAtUtc.HasValue)
+                    {
+                        <div class="h5 fw-bold sc-heading mb-0 mt-1">
+                            @AuditAnalyticsService.FormatLocalDateTime(s.LastAuditAtUtc.Value, "yyyy-MM-dd")
+                        </div>
+                        <div class="small text-muted mt-1">
+                            @AuditAnalyticsService.FormatLocalDateTime(s.LastAuditAtUtc.Value, "HH:mm") local
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="h5 fw-bold text-sc-gray mb-0 mt-1">No audits yet</div>
+                        <div class="small text-muted mt-1">Run your first scan</div>
+                    }
+                </div>
+                <span class="sc-kpi-icon"><i class="bi bi-calendar-check"></i></span>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- 2. Charts Row: Risk Doughnut + Failed Checks per Category Bar -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="card sc-card h-100">
+            <div class="card-header py-3">
+                <i class="bi bi-pie-chart me-1"></i>Computers by Overall Risk
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center">
+                @if (s.TotalComputers == 0)
+                {
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-pc-display fs-2 d-block mb-2"></i>
+                        <p class="mb-0 small">Add active computers to view overall risk distribution.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="sc-chart-box">
+                        <canvas id="riskDoughnutChart"
+                                data-chart="@Model.RiskChartJson"
+                                aria-label="Doughnut chart of computers by overall risk"
+                                role="img"></canvas>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card sc-card h-100">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <span><i class="bi bi-bar-chart-line me-1"></i>Failed Checks by Category</span>
+                <span class="small text-muted fw-normal">Across latest completed audit per computer</span>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-center">
+                <div class="sc-chart-box">
+                    <canvas id="categoryFailuresChart"
+                            data-chart="@Model.CategoryChartJson"
+                            aria-label="Bar chart of failed checks per security category"
+                            role="img"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Computers Needing Attention & Recent Alerts -->
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="card sc-card h-100">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <span><i class="bi bi-exclamation-diamond me-1"></i>Computers Needing Attention</span>
+                <a asp-page="/Computers/Index" class="btn btn-sm btn-outline-secondary">All Computers</a>
+            </div>
+            <div class="card-body p-0">
+                @if (s.AttentionComputers.Count == 0)
+                {
+                    <div class="p-5 text-center text-muted">
+                        <i class="bi bi-pc-display fs-2 d-block mb-2"></i>
+                        <p class="mb-0">No active computers are registered yet.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Computer</th>
+                                    <th>Risk</th>
+                                    <th>Score</th>
+                                    <th>Failed Checks</th>
+                                    <th>Last Audit</th>
+                                    <th class="text-end pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in s.AttentionComputers)
+                                {
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold">@row.ComputerName</div>
+                                            <div class="small text-muted">
+                                                <code>@row.HostName</code>
+                                                @if (!string.IsNullOrWhiteSpace(row.Location))
+                                                {
+                                                    <span>&bull; @row.Location</span>
+                                                }
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(row.LatestAttemptNote))
+                                            {
+                                                <div class="small text-sc-orange mt-1">
+                                                    <i class="bi bi-exclamation-circle me-1"></i>@row.LatestAttemptNote
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @row.OverallRiskBadgeClass">@row.OverallRiskDisplay</span>
+                                        </td>
+                                        <td>
+                                            @if (row.HasCompletedAudit && row.Score.HasValue)
+                                            {
+                                                <span class="fw-bold @row.ScoreTextClass me-1">@row.Score.Value</span>
+                                                <span class="badge @row.ScoreBadgeClass">@row.ScoreLabel</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">&mdash;</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (row.HasCompletedAudit)
+                                            {
+                                                @if (row.FailedCount > 0)
+                                                {
+                                                    <span class="badge risk-critical">@row.FailedCount Fail</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge risk-low">0 Fail</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">&mdash;</span>
+                                            }
+                                        </td>
+                                        <td class="small text-muted">
+                                            @if (row.LastAuditedAtUtc.HasValue)
+                                            {
+                                                @AuditAnalyticsService.FormatLocalDateTime(row.LastAuditedAtUtc.Value)
+                                            }
+                                            else
+                                            {
+                                                <span>Never</span>
+                                            }
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                                @if (row.LatestResultAuditId.HasValue)
+                                                {
+                                                    <a asp-page="/Audits/Result"
+                                                       asp-route-computerAuditId="@row.LatestResultAuditId.Value"
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        Result
+                                                    </a>
+                                                }
+                                                <a asp-page="/Computers/History"
+                                                   asp-route-id="@row.ComputerId"
+                                                   class="btn btn-sm btn-outline-secondary">
+                                                    History
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card sc-card h-100">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+                <span><i class="bi bi-bell me-1"></i>Recent Open Alerts</span>
+                <a asp-page="/Alerts/Index" class="btn btn-sm btn-outline-secondary">View All (@s.OpenAlerts)</a>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.RecentAlerts.Count == 0)
+                {
+                    <div class="p-5 text-center text-muted">
+                        <i class="bi bi-check2-circle fs-2 text-sc-green d-block mb-2"></i>
+                        <p class="mb-0 small">No open alerts right now.</p>
+                    </div>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var alert in Model.RecentAlerts)
+                        {
+                            <li class="list-group-item py-3">
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                    <span class="badge @alert.Severity.ToBadgeClass()">@alert.Severity</span>
+                                    <span class="small text-muted">
+                                        @AuditAnalyticsService.FormatLocalDateTime(alert.CreatedAt)
+                                    </span>
+                                </div>
+                                <div class="small fw-semibold mb-1">@alert.Message</div>
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+                                    <a asp-page="/Computers/History"
+                                       asp-route-id="@alert.ComputerId"
+                                       class="small text-muted text-decoration-none">
+                                        <i class="bi bi-pc-display me-1"></i>@(alert.Computer?.Name ?? $"Computer #{alert.ComputerId}")
+                                    </a>
+                                    <a asp-page="/Audits/Result"
+                                       asp-route-computerAuditId="@alert.ComputerAuditId"
+                                       class="small fw-semibold text-decoration-none">
+                                        View Result <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/chart.js/dist/chart.umd.js" asp-append-version="true"></script>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+}

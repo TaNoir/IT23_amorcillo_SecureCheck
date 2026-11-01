@@ -1,0 +1,231 @@
+@page "{id:int}"
+@model SecureCheck.Web.Pages.Computers.HistoryModel
+@{
+    var c = Model.Computer;
+    ViewData["Title"] = $"{c.Name} — Audit History";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <h1 class="h3 mb-0 sc-heading">
+                <i class="bi bi-graph-up me-2"></i>@c.Name — History
+            </h1>
+            @if (c.IsActive)
+            {
+                <span class="badge risk-low">Active</span>
+            }
+            else
+            {
+                <span class="badge status-error">Inactive</span>
+            }
+            <span class="badge sc-badge-navy">
+                <i class="bi @Model.ExecutionMode.ToIconClass() me-1"></i>@Model.ExecutionMode.ToDisplayName()
+            </span>
+        </div>
+        <p class="text-muted small mb-0">
+            Host: <code>@c.HostName</code>
+            @if (!string.IsNullOrWhiteSpace(c.Location))
+            {
+                <span>&bull; Location: <strong>@c.Location</strong></span>
+            }
+        </p>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        @if (Model.CanAudit && c.IsActive)
+        {
+            <a asp-page="/Audits/Run" asp-route-computerId="@c.Id" class="btn btn-primary">
+                <i class="bi bi-play-circle me-1"></i>Audit Computer
+            </a>
+        }
+        @if (Model.CanManage)
+        {
+            <a asp-page="./Edit" asp-route-id="@c.Id" class="btn btn-outline-primary">
+                <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+        }
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Computers
+        </a>
+    </div>
+</div>
+
+<!-- Score Over Time Line Chart -->
+<div class="card sc-card mb-4">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+        <span><i class="bi bi-graph-up-arrow me-1"></i>Security Score Over Time</span>
+        <span class="small text-muted fw-normal">0 &ndash; 100 weighted checklist score</span>
+    </div>
+    <div class="card-body">
+        @if (!Model.HasChartPoints)
+        {
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-graph-up fs-2 d-block mb-2"></i>
+                <p class="mb-0 small">No completed scored audits exist for <strong>@c.Name</strong> yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sc-chart-box-sm">
+                <canvas id="computerHistoryChart"
+                        data-chart="@Model.HistoryChartJson"
+                        aria-label="Line chart of security score over time for @c.Name"
+                        role="img"></canvas>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Past Audits Table -->
+<div class="card sc-card">
+    <div class="card-header py-3">
+        <i class="bi bi-clock-history me-1"></i>Past Audits (@Model.Audits.Count)
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Audits.Count == 0)
+        {
+            <div class="p-5 text-center text-muted">
+                <i class="bi bi-clipboard2-x fs-2 d-block mb-2"></i>
+                <p class="mb-3">This computer has not been audited yet.</p>
+                @if (Model.CanAudit && c.IsActive)
+                {
+                    <a asp-page="/Audits/Run" asp-route-computerId="@c.Id" class="btn btn-sm btn-primary">
+                        <i class="bi bi-play-circle me-1"></i>Run First Audit
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Date</th>
+                            <th>Run</th>
+                            <th>Started By</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Overall Risk</th>
+                            <th>Checks</th>
+                            <th>OS / Error</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Audits)
+                        {
+                            var isCompleted = item.Status == ComputerAuditStatus.Completed;
+                            <tr>
+                                <td class="ps-3">
+                                    @AuditAnalyticsService.FormatLocalDateTime(item.TimestampUtc, "yyyy-MM-dd HH:mm:ss")
+                                </td>
+                                <td>
+                                    <a asp-page="/Audits/Details"
+                                       asp-route-runId="@item.AuditRunId"
+                                       class="fw-semibold text-decoration-none">
+                                        #@item.AuditRunId
+                                    </a>
+                                </td>
+                                <td>@item.StartedByName</td>
+                                <td>
+                                    <span class="badge @item.Status.ToBadgeClass()">
+                                        @if (item.IsInProgress)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        }
+                                        @item.Status.ToDisplayName()
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (isCompleted)
+                                    {
+                                        if (item.Score.HasValue)
+                                        {
+                                            <span class="fw-bold @item.ScoreTextClass me-1">@item.Score.Value</span>
+                                            <span class="badge @item.ScoreBadgeClass">@item.ScoreLabel</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge status-error">N/A</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">&mdash;</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.OverallRiskBadgeClass))
+                                    {
+                                        <span class="badge @item.OverallRiskBadgeClass">@item.OverallRiskDisplay</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">&mdash;</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (isCompleted)
+                                    {
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <span class="badge risk-low">@item.PassedCount Pass</span>
+                                            <span class="badge risk-critical">@item.FailedCount Fail</span>
+                                            @if (item.ErrorCount > 0)
+                                            {
+                                                <span class="badge status-error">@item.ErrorCount Error</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">&mdash;</span>
+                                    }
+                                </td>
+                                <td class="small">
+                                    @if (!string.IsNullOrWhiteSpace(item.ErrorMessage))
+                                    {
+                                        <span class="text-sc-red">@item.ErrorMessage</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(item.OsCaption))
+                                    {
+                                        <span class="text-muted">@item.OsCaption</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">&mdash;</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-3">
+                                    @if (item.IsInProgress)
+                                    {
+                                        <a asp-page="/Audits/Progress"
+                                           asp-route-runId="@item.AuditRunId"
+                                           class="btn btn-sm btn-primary">
+                                            Progress
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a asp-page="/Audits/Result"
+                                           asp-route-computerAuditId="@item.ComputerAuditId"
+                                           class="btn btn-sm btn-outline-primary">
+                                            View Result
+                                        </a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/chart.js/dist/chart.umd.js" asp-append-version="true"></script>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+}
+

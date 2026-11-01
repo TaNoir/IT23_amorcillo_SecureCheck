@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using SecureCheck.Web.Data;
 using SecureCheck.Web.Models;
 using SecureCheck.Web.Services;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = LicenseType.Community;
 
 // ---------- Database ----------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -27,6 +29,7 @@ builder.Services.AddSingleton<AuditEvaluator>();
 builder.Services.AddSingleton<AuditQueue>();
 builder.Services.AddScoped<AlertService>();
 builder.Services.AddScoped<ActivityLogService>();
+builder.Services.AddScoped<ReportService>();
 builder.Services.AddHostedService<AuditWorker>();
 
 // ---------- Identity (login + roles) ----------

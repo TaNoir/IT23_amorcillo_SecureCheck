@@ -134,3 +134,79 @@ a {
     width: auto;
 }
 
+/* ---------- Phase 7: Dashboard, charts, fix steps & alerts ---------- */
+.sc-chart-box {
+    position: relative;
+    width: 100%;
+    height: 280px;
+}
+
+.sc-chart-box-sm {
+    position: relative;
+    width: 100%;
+    height: 250px;
+}
+
+.sc-kpi-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: .625rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    background-color: rgba(10, 48, 97, .08);
+    color: var(--sc-navy);
+    flex-shrink: 0;
+}
+
+.sc-score-hero {
+    min-width: 140px;
+    padding: .85rem 1.25rem;
+    border-radius: var(--sc-radius);
+    background-color: var(--sc-bg);
+    border: 1px solid var(--sc-border);
+    text-align: center;
+}
+
+.sc-score-hero-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.05;
+}
+
+.sc-fix-box {
+    background-color: #FFF9F8;
+    border: 1px solid #FAD3D2;
+    border-left: 4px solid var(--sc-red);
+    border-radius: .5rem;
+    padding: .75rem 1rem;
+}
+
+code.sc-fix-cmd {
+    background-color: #EEF2F7;
+    color: var(--sc-navy-dark);
+    border: 1px solid #D5DCE6;
+    border-radius: .25rem;
+    padding: .1rem .38rem;
+    font-size: .875em;
+    word-break: break-word;
+}
+
+.sc-raw-json {
+    max-height: 420px;
+    overflow: auto;
+    background-color: #0F172A;
+    color: #E2E8F0;
+    border-radius: .5rem;
+    padding: 1rem;
+    font-size: .84rem;
+    margin-bottom: 0;
+}
+
+.sc-bell-badge {
+    font-size: .72rem;
+    padding: .22em .52em;
+}
+
+

@@ -1,0 +1,248 @@
+@page "{runId:int}"
+@model SecureCheck.Web.Pages.Audits.DetailsModel
+@{
+    var run = Model.Run;
+    ViewData["Title"] = $"Audit Run #{run.Id} Details";
+    var clampedCompleted = run.TotalComputers > 0
+        ? Math.Clamp(run.CompletedComputers, 0, run.TotalComputers)
+        : 0;
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-2">
+    <div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <h1 class="h3 mb-0 sc-heading">
+                <i class="bi bi-clipboard2-data me-2"></i>Audit Run #@run.Id
+            </h1>
+            <span class="badge @run.Status.ToBadgeClass() fs-6">@run.Status.ToDisplayName()</span>
+        </div>
+        <p class="text-muted small mb-0">
+            Started by <strong>@run.StartedByName</strong> on
+            @AuditAnalyticsService.FormatLocalDateTime(run.CreatedAt, "yyyy-MM-dd HH:mm:ss")
+        </p>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <a asp-page="/Reports/Index" asp-page-handler="RunPdf" asp-route-runId="@run.Id" class="btn btn-primary"><i class="bi bi-file-pdf me-1"></i>Export PDF</a>
+        <a asp-page="/Reports/Index" asp-page-handler="RunCsv" asp-route-runId="@run.Id" class="btn btn-outline-primary"><i class="bi bi-filetype-csv me-1"></i>Export CSV</a>
+        @if (Model.IsInProgress)
+        {
+            <a asp-page="./Progress" asp-route-runId="@run.Id" class="btn btn-primary">
+                <i class="bi bi-activity me-1"></i>Live Progress
+            </a>
+        }
+        @if (Model.CanAudit)
+        {
+            <a asp-page="./Run" class="btn btn-outline-primary">
+                <i class="bi bi-play-circle me-1"></i>Run Another Audit
+            </a>
+        }
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Audit History
+        </a>
+    </div>
+</div>
+
+@if (Model.IsInProgress)
+{
+    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4" role="alert">
+        <div>
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            This audit run is still in progress. Open the live progress view to watch updates automatically.
+        </div>
+        <a asp-page="./Progress" asp-route-runId="@run.Id" class="btn btn-sm btn-primary">View Live Progress</a>
+    </div>
+}
+
+<!-- Run Summary Cards -->
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 mb-4">
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold">Computers Audited</div>
+                <div class="h3 fw-bold sc-heading mb-0 mt-1">@clampedCompleted / @run.TotalComputers</div>
+                <div class="small text-muted mt-1">Completed in this run</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold">Run Average Score</div>
+                @if (Model.AverageScore.HasValue)
+                {
+                    <div class="d-flex align-items-baseline gap-2 mt-1">
+                        <span class="h3 fw-bold @Model.AverageScoreTextClass mb-0">@Model.AverageScore.Value</span>
+                        <span class="badge @Model.AverageScoreBadgeClass">@Model.AverageScoreLabel</span>
+                    </div>
+                    <div class="small text-muted mt-1">Across evaluated computers</div>
+                }
+                else
+                {
+                    <div class="h3 fw-bold text-sc-gray mb-0 mt-1">&mdash;</div>
+                    <div class="small text-muted mt-1">No evaluated computers</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold">High / Critical Risk</div>
+                <div class="h3 fw-bold @(Model.HighOrCriticalCount > 0 ? "text-sc-red" : "text-sc-green") mb-0 mt-1">
+                    @Model.HighOrCriticalCount
+                </div>
+                <div class="small text-muted mt-1">
+                    @(Model.HighOrCriticalCount == 1 ? "Computer with alerts" : "Computers with alerts")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card sc-card h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold">Timing</div>
+                @if (run.FinishedAt.HasValue)
+                {
+                    <div class="fw-semibold sc-heading mt-1">
+                        @AuditAnalyticsService.FormatLocalDateTime(run.FinishedAt.Value, "yyyy-MM-dd HH:mm:ss")
+                    </div>
+                    @if (run.StartedAt.HasValue)
+                    {
+                        var seconds = Math.Max(0, (run.FinishedAt.Value - run.StartedAt.Value).TotalSeconds);
+                        <div class="small text-muted mt-1">Finished in @seconds.ToString("F1")s</div>
+                    }
+                }
+                else
+                {
+                    <div class="fw-semibold text-sc-gray mt-1">In progress...</div>
+                    <div class="small text-muted mt-1">Waiting for completion</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Per-Computer Table -->
+<div class="card sc-card">
+    <div class="card-header py-3">
+        <i class="bi bi-pc-display-horizontal me-1"></i>Computer Results (@Model.Computers.Count)
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Computer</th>
+                        <th>Host / IP</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Overall Risk</th>
+                        <th>Checks</th>
+                        <th>OS / Error</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Computers)
+                    {
+                        var isCompleted = item.Status == ComputerAuditStatus.Completed;
+                        <tr>
+                            <td class="ps-3">
+                                <div class="fw-semibold">@item.ComputerName</div>
+                                <div class="small text-muted">
+                                    @if (!string.IsNullOrWhiteSpace(item.Location))
+                                    {
+                                        <span>@item.Location &bull; </span>
+                                    }
+                                    <span><i class="bi @item.ExecutionMode.ToIconClass() me-1"></i>@item.ExecutionMode.ToDisplayName()</span>
+                                </div>
+                            </td>
+                            <td><code>@item.HostName</code></td>
+                            <td>
+                                <span class="badge @item.Status.ToBadgeClass()">@item.Status.ToDisplayName()</span>
+                            </td>
+                            <td>
+                                @if (isCompleted)
+                                {
+                                    if (item.Score.HasValue)
+                                    {
+                                        <span class="fw-bold @item.ScoreTextClass me-1">@item.Score.Value</span>
+                                        <span class="badge @item.ScoreBadgeClass">@item.ScoreLabel</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge status-error">N/A</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.OverallRiskBadgeClass))
+                                {
+                                    <span class="badge @item.OverallRiskBadgeClass">@item.OverallRiskDisplay</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                            <td>
+                                @if (isCompleted)
+                                {
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="badge risk-low">@item.PassedCount Pass</span>
+                                        <span class="badge risk-critical">@item.FailedCount Fail</span>
+                                        @if (item.ErrorCount > 0)
+                                        {
+                                            <span class="badge status-error">@item.ErrorCount Error</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                            <td class="small">
+                                @if (!string.IsNullOrWhiteSpace(item.ErrorMessage))
+                                {
+                                    <span class="text-sc-red">@item.ErrorMessage</span>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(item.OsCaption))
+                                {
+                                    <span class="text-muted">@item.OsCaption</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                            <td class="text-end pe-3">
+                                <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                    <a asp-page="./Result"
+                                       asp-route-computerAuditId="@item.ComputerAuditId"
+                                       class="btn btn-sm btn-outline-primary">
+                                        View Result
+                                    </a>
+                                    <a asp-page="/Computers/History"
+                                       asp-route-id="@item.ComputerId"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        History
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
